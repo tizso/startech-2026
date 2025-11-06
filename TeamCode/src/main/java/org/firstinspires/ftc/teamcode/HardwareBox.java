@@ -47,7 +47,6 @@ public class HardwareBox extends LinearOpMode{
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
         outtake.setDirection(DcMotorSimple.Direction.FORWARD);
 
-
         intake.setPower(0);
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
