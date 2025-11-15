@@ -147,11 +147,11 @@ public class TeleOpStarTech extends OpMode {
         }
 
         if(reverse){
-            robot.intake.setDirection(DcMotorSimple.Direction.REVERSE);
+            robot.intake.setDirection(DcMotorSimple.Direction.FORWARD);
             robot.servoInL.setDirection(DcMotorSimple.Direction.REVERSE);
             robot.servoInR.setDirection(DcMotorSimple.Direction.REVERSE);
         } else {
-            robot.intake.setDirection(DcMotorSimple.Direction.FORWARD);
+            robot.intake.setDirection(DcMotorSimple.Direction.REVERSE);
             robot.servoInL.setDirection(DcMotorSimple.Direction.FORWARD);
             robot.servoInR.setDirection(DcMotorSimple.Direction.FORWARD);
         }
