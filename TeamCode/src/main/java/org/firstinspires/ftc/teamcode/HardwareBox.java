@@ -21,11 +21,13 @@ public class HardwareBox extends LinearOpMode{
 
     public DistanceSensor sensorDistance;
 
-    public DcMotor intake;
+    public DcMotor intake = null;
     public DcMotor outtake = null;
 
     public CRServo servoInR = null;
     public CRServo servoInL = null;
+
+    public Servo separator = null;
     HardwareMap hwMap =  null;
     private ElapsedTime period  = new ElapsedTime();
 
@@ -60,10 +62,14 @@ public class HardwareBox extends LinearOpMode{
         // Define and initialize ALL installed servos.
 
         servoInR = hwMap.get(CRServo.class, "servoInR");
-        //servoInL = hwMap.get(CRServo.class, "servoInL");
+        servoInL = hwMap.get(CRServo.class, "servoInL");
+        separator = hwMap.get(Servo.class, "separator");
+
+        servoInR.setDirection(DcMotorSimple.Direction.REVERSE);
+
 
         // Initialize the distance sensor
-        sensorDistance = hwMap.get(DistanceSensor.class, "sensor_distance");
+        sensorDistance = hwMap.get(DistanceSensor.class, "dist");
     }
 
 

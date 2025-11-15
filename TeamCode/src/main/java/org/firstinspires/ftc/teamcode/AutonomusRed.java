@@ -42,8 +42,9 @@ import java.util.List;
 
 @Autonomous(name = "AutonomusRed", group = "Opmode")
 @Configurable // Panels
-@Disabled
-@SuppressWarnings("FieldCanBeLocal") // Stop Android Studio from bugging about variables being predefined
+
+@SuppressWarnings("FieldCanBeLocal")
+// Stop Android Studio from bugging about variables being predefined
 public class AutonomusRed extends LinearOpMode {
     // Initialize elapsed timer
     private final ElapsedTime runtime = new ElapsedTime();
@@ -84,7 +85,6 @@ public class AutonomusRed extends LinearOpMode {
     private int pathStateGPP; // Current state machine value
 
     private int foundID; // Current state machine value, dictates which one to run
-
 
 
     // Custom logging function to support telemetry and Panels
@@ -130,12 +130,11 @@ public class AutonomusRed extends LinearOpMode {
         }
 
 
-
         // Log completed initialization to Panels and driver station (custom log function)
         log("Status", "Initialized");
         telemetry.update(); // Update driver station after logging
 
-        while (!opModeIsActive()){
+        while (!opModeIsActive()) {
             telemetry.update();
             // Step through the list of detected tags and look for a matching tag
             List<AprilTagDetection> currentDetections = aprilTag.getDetections();

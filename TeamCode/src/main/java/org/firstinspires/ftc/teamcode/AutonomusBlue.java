@@ -6,6 +6,7 @@ import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
@@ -22,6 +23,7 @@ import java.util.List;
 
 @Autonomous(name = "AutonomusBlue", group = "Opmode")
 @Configurable
+@Disabled
 @SuppressWarnings("FieldCanBeLocal")
 public class AutonomusBlue extends LinearOpMode {
     HardwareBox robot = new HardwareBox();
