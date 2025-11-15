@@ -4,7 +4,6 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.bylazar.telemetry.PanelsTelemetry;
-import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
@@ -34,7 +33,6 @@ public class TeleOpStarTech extends OpMode {
     public static Pose startingPose; //See ExampleAuto to understand how to use this
     private boolean automatedDrive;
     private Supplier<PathChain> pathChain;
-    private TelemetryManager telemetryM;
     private boolean slowMode = false;
     private double SLOW_DOWN_FACTOR = 1.0;
 
@@ -65,7 +63,6 @@ public class TeleOpStarTech extends OpMode {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(startingPose == null ? new Pose() : startingPose);
         follower.update();
-        telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
 
         robot = new HardwareBox();
         robot.init(hardwareMap);
@@ -216,13 +213,6 @@ public class TeleOpStarTech extends OpMode {
         telemetry.addData("AprilTag detected ", desiredTag);
 
         telemetry.update();
-
-        telemetryM.debug("position", follower.getPose());
-        telemetryM.debug("velocity", follower.getVelocity());
-        telemetryM.debug("automatedDrive", automatedDrive);
-        telemetryM.debug("AprilTag detected ", desiredTag);
-
-        telemetryM.update();
     }
 
     private void initAprilTag() {
