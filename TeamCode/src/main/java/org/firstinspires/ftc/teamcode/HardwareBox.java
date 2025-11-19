@@ -80,14 +80,32 @@ public class HardwareBox extends LinearOpMode{
         }
     }
 
+    public void shutGreenArtifact(){
+        servoInL.setPower(1);
+        safeWaitSeconds(2);
+        servoInL.setPower(0);
+        safeWaitSeconds(2);
+    }
+
+    public void shutPurpleArtifact(){
+        servoInR.setPower(1);
+        safeWaitSeconds(2);
+        servoInR.setPower(0);
+        safeWaitSeconds(2);
+    }
+
+    public void setSeparator(double value){
+        separator.setPosition(value);
+    }
+
 
     /*public void setIntake(double value){
         intake.setPower(value);
     }*/
 
-    /*public void setOuttake(double value){
+    public void setOuttake(double value){
         outtake.setPower(value);
-    }*/
+    }
 
 
     /*public void setServoInL(int value){
