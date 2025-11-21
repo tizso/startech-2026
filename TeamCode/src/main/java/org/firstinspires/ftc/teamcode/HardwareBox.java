@@ -81,6 +81,7 @@ public class HardwareBox extends LinearOpMode{
     }
 
     public void shutGreenArtifact(){
+        adjustShut();
         servoInL.setPower(1);
         safeWaitSeconds(2);
         servoInL.setPower(0);
@@ -88,10 +89,17 @@ public class HardwareBox extends LinearOpMode{
     }
 
     public void shutPurpleArtifact(){
+        adjustShut();
         servoInR.setPower(1);
         safeWaitSeconds(2);
         servoInR.setPower(0);
         safeWaitSeconds(2);
+    }
+
+    private void adjustShut(){
+        setIntake(0.6);
+        safeWaitSeconds(0.8);
+        setIntake(0);
     }
 
     public void setSeparator(double value){
@@ -99,9 +107,9 @@ public class HardwareBox extends LinearOpMode{
     }
 
 
-    /*public void setIntake(double value){
+    public void setIntake(double value){
         intake.setPower(value);
-    }*/
+    }
 
     public void setOuttake(double value){
         outtake.setPower(value);

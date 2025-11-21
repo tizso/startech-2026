@@ -4,7 +4,6 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -20,7 +19,6 @@ import java.util.Locale;
 
 @Autonomous(name = "Autonomus StarTech", group = "Opmode")
 @Configurable
-@Disabled
 @SuppressWarnings({"FieldCanBeLocal", "unused"})
 public class AutonomusStarTech extends LinearOpMode {
     private final ElapsedTime runtime = new ElapsedTime();
@@ -40,7 +38,7 @@ public class AutonomusStarTech extends LinearOpMode {
     private State currentState = State.SETUP;
 
     // --- Constants ---
-    private static final double AUTON_START_DELAY_SEC = 0.0;
+    private static final double AUTON_START_DELAY_SEC = 5.0;
     private static final double AUTON_TIMEOUT_SEC = 30.0;
 
     private static final Pose INITIAL_TAG_POSE = new Pose(72, 144, Math.toRadians(-90));
@@ -127,7 +125,8 @@ public class AutonomusStarTech extends LinearOpMode {
         AprilTagDetection initialTag = null;
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
         for (AprilTagDetection detection : currentDetections) {
-            if (detection.id >= 21 && detection.id <= 23) {
+            // CRITICAL FIX: Only consider tags where pose data is available
+            if (detection.metadata != null && (detection.id >= 21 && detection.id <= 23)) {
                 initialTag = detection;
                 break;
             }
@@ -171,7 +170,8 @@ public class AutonomusStarTech extends LinearOpMode {
             currentState = State.SEARCH_INITIAL_TAG;
             return true;
         } else {
-            telemetry.addData("Status", "NO APRILTAG VISIBLE").addData(">", "Adjust robot to see a tag (21-23)");
+            telemetry.addData("Status", "NO APRILTAG VISIBLE (or pose data missing)");
+            telemetry.addData(">", "Adjust robot to see a tag (21-23)");
         }
         telemetry.update();
         sleep(50);
@@ -179,7 +179,7 @@ public class AutonomusStarTech extends LinearOpMode {
     }
 
     private void handleSearchInitialTag() {
-        if (detectedTag != null && (detectedTag.id >= 21 && detectedTag.id <= 23)) {
+        if (detectedTag != null) { // We know detectedTag has metadata because of updateDetectedTagForState()
             foundID = detectedTag.id;
             initialSide = (int) Math.signum(detectedTag.ftcPose.x);
             currentState = State.ADJUST_TO_INITIAL_TAG;
@@ -194,12 +194,12 @@ public class AutonomusStarTech extends LinearOpMode {
         double errorX = detectedTag.ftcPose.x - targetX;
         double errorY = detectedTag.ftcPose.y - DISTANCE_FROM_APRILTAG;
         if (Math.abs(errorX) < POSITIONING_TOLERANCE && Math.abs(errorY) < POSITIONING_TOLERANCE) {
-            follower.setTeleOpDrive(0.0, 0.0, 0.0, true);
+            follower.setTeleOpDrive(0, 0, 0, true);
             currentState = State.TURN_TO_GOAL_TAG;
         } else {
             double forwardPower = -FORWARD_GAIN * errorY;
             double strafePower = STRAFE_GAIN * errorX;
-            follower.setTeleOpDrive(clip(forwardPower), clip(strafePower), 0.0, true);
+            follower.setTeleOpDrive(clip(forwardPower), clip(strafePower), 0, true);
         }
     }
 
@@ -288,10 +288,13 @@ public class AutonomusStarTech extends LinearOpMode {
                 break;
         }
         for (AprilTagDetection detection : currentDetections) {
-            for (int id : targetIds) {
-                if (detection.id == id) {
-                    detectedTag = detection;
-                    return;
+            // CRITICAL FIX: Only assign a tag if its pose data is available
+            if (detection.metadata != null) {
+                for (int id : targetIds) {
+                    if (detection.id == id) {
+                        detectedTag = detection;
+                        return;
+                    }
                 }
             }
         }

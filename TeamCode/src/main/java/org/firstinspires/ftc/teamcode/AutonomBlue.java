@@ -54,9 +54,9 @@ public class AutonomBlue extends LinearOpMode {
     // Initialize poses
     private final int DISTANCE_FROM_APRILTAG = 50;
     private final Pose startPose = new Pose(0, 0, Math.toRadians(90)); // Start Pose of our robot.
-    private final Pose scorePoseLong = new Pose(72, 20, Math.toRadians(115)); // Scoring Pose of our robot. It is facing the goal at a 115 degree angle.
+    private final Pose scorePoseLong = new Pose(0, 72, Math.toRadians(135)); // Scoring Pose of our robot. It is facing the goal at a 115 degree angle.
     private final Pose scorePoseShort = new Pose(24, 20, Math.toRadians(115)); // Scoring Pose of our robot. It is facing the goal at a 115 degree angle.
-    private final Pose parkingPose = new Pose(72, 120, Math.toRadians(180)); // Parking Pose of our robot.
+    private final Pose parkingPose = new Pose(0, 40, Math.toRadians(90)); // Parking Pose of our robot.
     private Pose targetPose = new Pose();
 
     // Initialize variables for paths
@@ -95,7 +95,7 @@ public class AutonomBlue extends LinearOpMode {
 
     public void shootArtifacts() {
         // Put your shooting logic/functions here
-        robot.setOuttake(1.0);
+        robot.setOuttake(0.75);
         sleep(2000L);
 
         if(foundID == 21) {
@@ -111,6 +111,7 @@ public class AutonomBlue extends LinearOpMode {
             robot.shutPurpleArtifact();
             robot.shutGreenArtifact();
         }
+        robot.setOuttake(0.0);
         // Put your shooting logic/functions here
     }
 
@@ -152,6 +153,9 @@ public class AutonomBlue extends LinearOpMode {
                     // This tag is NOT in the library, so we don't have enough information to track to it.
                     telemetry.addData("Unknown", "Tag ID %d is not in TagLibrary", detection.id);
                 }
+                telemetry.addData("Distanta de la AT: ", desiredTag.ftcPose.range);
+                telemetry.addData("xPos", desiredTag.ftcPose.x);
+                telemetry.addData("angel", desiredTag.ftcPose.yaw);
             }
         }
 
