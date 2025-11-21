@@ -4,6 +4,7 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -19,6 +20,7 @@ import java.util.Locale;
 
 @Autonomous(name = "Autonomus StarTech", group = "Opmode")
 @Configurable
+@Disabled
 @SuppressWarnings({"FieldCanBeLocal", "unused"})
 public class AutonomusStarTech extends LinearOpMode {
     private final ElapsedTime runtime = new ElapsedTime();
@@ -38,7 +40,7 @@ public class AutonomusStarTech extends LinearOpMode {
     private State currentState = State.SETUP;
 
     // --- Constants ---
-    private static final double AUTON_START_DELAY_SEC = 5.0;
+    private static final double AUTON_START_DELAY_SEC = 0.0;
     private static final double AUTON_TIMEOUT_SEC = 30.0;
 
     private static final Pose INITIAL_TAG_POSE = new Pose(72, 144, Math.toRadians(-90));
@@ -192,12 +194,12 @@ public class AutonomusStarTech extends LinearOpMode {
         double errorX = detectedTag.ftcPose.x - targetX;
         double errorY = detectedTag.ftcPose.y - DISTANCE_FROM_APRILTAG;
         if (Math.abs(errorX) < POSITIONING_TOLERANCE && Math.abs(errorY) < POSITIONING_TOLERANCE) {
-            follower.setTeleOpDrive(0, 0, 0, true);
+            follower.setTeleOpDrive(0.0, 0.0, 0.0, true);
             currentState = State.TURN_TO_GOAL_TAG;
         } else {
             double forwardPower = -FORWARD_GAIN * errorY;
             double strafePower = STRAFE_GAIN * errorX;
-            follower.setTeleOpDrive(clip(forwardPower), clip(strafePower), 0, true);
+            follower.setTeleOpDrive(clip(forwardPower), clip(strafePower), 0.0, true);
         }
     }
 
