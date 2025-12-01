@@ -4,6 +4,7 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
@@ -19,6 +20,7 @@ import java.util.Locale;
 
 @Autonomous(name = "Autonomus StarTech", group = "Opmode")
 @Configurable
+@Disabled
 @SuppressWarnings({"FieldCanBeLocal", "unused"})
 public class AutonomusStarTech extends LinearOpMode {
     private final ElapsedTime runtime = new ElapsedTime();

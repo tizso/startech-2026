@@ -42,7 +42,7 @@ import java.util.List;
 
 @Autonomous(name = "Autonomus Blue", group = "Opmode")
 @Configurable // Panels
-
+@Disabled
 
 @SuppressWarnings("FieldCanBeLocal")
 // Stop Android Studio from bugging about variables being predefined

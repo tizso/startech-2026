@@ -6,6 +6,7 @@ import com.qualcomm.hardware.rev.Rev2mDistanceSensor;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -22,7 +23,8 @@ public class HardwareBox extends LinearOpMode{
     public DistanceSensor sensorDistance;
 
     public DcMotor intake = null;
-    public DcMotor outtake = null;
+    public DcMotorEx outtakeLeft = null;
+    public DcMotorEx outtakeRight = null;
 
     public CRServo servoInR = null;
     public CRServo servoInL = null;
@@ -44,18 +46,24 @@ public class HardwareBox extends LinearOpMode{
 
         // Define and Initialize Motors
         intake = hwMap.get(DcMotor.class, "intake");
-        outtake = hwMap.get(DcMotor.class, "outtake");
+        outtakeLeft = hwMap.get(DcMotorEx.class, "outtakeLeft");
+        outtakeRight = hwMap.get(DcMotorEx.class, "outtakeRight");
 
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
-        outtake.setDirection(DcMotorSimple.Direction.FORWARD);
+        outtakeLeft.setDirection(DcMotorSimple.Direction.FORWARD);
+        outtakeRight.setDirection(DcMotorSimple.Direction.REVERSE);
 
         intake.setPower(0);
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        outtake.setPower(0);
-        outtake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        outtake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        outtakeLeft.setPower(0);
+        outtakeLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        outtakeLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        outtakeRight.setPower(0);
+        outtakeRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        outtakeRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         //color = hardwareMap.get(NormalizedColorSensor.class, "color");
 
@@ -81,15 +89,15 @@ public class HardwareBox extends LinearOpMode{
     }
 
     public void shutGreenArtifact(){
-        adjustShut();
+
         servoInL.setPower(1);
         safeWaitSeconds(2);
         servoInL.setPower(0);
         safeWaitSeconds(2);
+
     }
 
     public void shutPurpleArtifact(){
-        adjustShut();
         servoInR.setPower(1);
         safeWaitSeconds(2);
         servoInR.setPower(0);
@@ -112,7 +120,8 @@ public class HardwareBox extends LinearOpMode{
     }
 
     public void setOuttake(double value){
-        outtake.setPower(value);
+        outtakeLeft.setVelocity(value);
+        outtakeRight.setVelocity(value);
     }
 
 
