@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.pedroPathing;
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.paths.PathChain;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -165,8 +166,8 @@ public class TeleOpStarTech extends OpMode {
         if (currentGamepad1.start && !previousGamepad1.start) {
             // Use placeholder coordinates for now. These should be tuned.
             Pose targetPose = (autoStartingSide > 0) ? 
-                                new Pose(24, 72, Math.toRadians(90)) : // Blue side target
-                                new Pose(120, 72, Math.toRadians(90));   // Red side target
+                                new Pose(105, 34, Math.toRadians(90)) : // Blue side target
+                                new Pose(39, 34, Math.toRadians(90));   // Red side target
 
             PathChain pathToTarget = follower.pathBuilder()
                     .addPath(new BezierLine(follower.getPose(), targetPose))

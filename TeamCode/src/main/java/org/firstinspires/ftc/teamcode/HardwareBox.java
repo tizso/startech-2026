@@ -30,6 +30,8 @@ public class HardwareBox extends LinearOpMode{
     public CRServo servoInL = null;
 
     public Servo separator = null;
+
+    public Servo cameraTilt = null;
     HardwareMap hwMap =  null;
     private ElapsedTime period  = new ElapsedTime();
 
@@ -72,14 +74,13 @@ public class HardwareBox extends LinearOpMode{
         servoInR = hwMap.get(CRServo.class, "servoInR");
         servoInL = hwMap.get(CRServo.class, "servoInL");
         separator = hwMap.get(Servo.class, "separator");
+        cameraTilt = hwMap.get(Servo.class, "cameraTilt");
 
         servoInR.setDirection(DcMotorSimple.Direction.REVERSE);
-
 
         // Initialize the distance sensor
         sensorDistance = hwMap.get(DistanceSensor.class, "dist");
     }
-
 
     public void safeWaitSeconds(double time) {
         ElapsedTime timer = new ElapsedTime(SECONDS);

@@ -7,6 +7,7 @@ import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.hardware.lynx.LynxVoltageSensor;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -23,6 +24,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 
 @Autonomous(name = "Autonomous NextGen", group = "Opmode")
+@Disabled
 public class AutonomousNextGen extends LinearOpMode {
 
     // Core components
@@ -98,9 +100,6 @@ public class AutonomousNextGen extends LinearOpMode {
         robot.init(hardwareMap);
         robot.servoInR.setDirection(DcMotorSimple.Direction.FORWARD);
         follower = Constants.createFollower(hardwareMap);
-
-        DcMotorEx shooterMotor = hardwareMap.get(DcMotorEx.class, "outtakeLeft");
-        shooterMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
 
         double f = 12.0/maxTicksPerSec;
         double i = 0.0005;

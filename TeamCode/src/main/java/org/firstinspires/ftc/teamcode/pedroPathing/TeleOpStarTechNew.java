@@ -5,6 +5,7 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -22,7 +23,7 @@ import java.util.List;
 
 /**
  * This is the main TeleOp program for the StarTech team's 2026 season robot.
- * 
+ * <p>
  * It features:
  * - A field-centric drive system using the Pedro Pathing library.
  * - Seamless pose transition from the Autonomous period.
@@ -32,7 +33,8 @@ import java.util.List;
  * - An innovative shot detection algorithm based on shooter velocity drop.
  */
 @Configurable
-@TeleOp(name = "TeleOp StarTech New - 2026", group="00-TeleOp")
+@TeleOp(name = "TeleOp StarTech New - 2026", group = "00-TeleOp")
+
 public class TeleOpStarTechNew extends OpMode {
 
     // Core Robot and Pathing Objects
@@ -41,6 +43,7 @@ public class TeleOpStarTechNew extends OpMode {
 
     // Driving Control Variables
     private boolean slowMode = false;
+
     private double SLOW_DOWN_FACTOR = 1.0;
 
     // Mechanism State Toggles
@@ -55,7 +58,8 @@ public class TeleOpStarTechNew extends OpMode {
     private int ballCount = 0; // Tracks the number of balls currently held by the robot
 
     // Shot Detection State Machine
-    private enum ShotDetectorState { READY, COOLDOWN } // States to prevent a single shot from being counted multiple times
+    private enum ShotDetectorState {READY, COOLDOWN} // States to prevent a single shot from being counted multiple times
+
     private ShotDetectorState shotDetectorState = ShotDetectorState.READY;
     private final ElapsedTime shotCooldownTimer = new ElapsedTime();
     private double lastShooterVelocity = 0.0; // Stores the previous loop's velocity for drop detection
@@ -95,7 +99,7 @@ public class TeleOpStarTechNew extends OpMode {
         String loadSource;
         PoseStorage.StoredPose storedPoseFromFile = PoseStorage.loadPoseFromFile();
         boolean isFilePoseDefault = storedPoseFromFile.pose.getX() == 0 && storedPoseFromFile.pose.getY() == 0 && storedPoseFromFile.pose.getHeading() == 0;
-        
+
         // Use the static OpModeData as a backup if the file is empty or uninitialized, but a pose exists from the same session.
         if (isFilePoseDefault && OpModeData.lastPose != null) {
             startingPose = OpModeData.lastPose;
@@ -135,10 +139,10 @@ public class TeleOpStarTechNew extends OpMode {
         handleManualDrive();
         handleGamepadControls();
         handleShooter();
-        
+
         updateTelemetry();
     }
-    
+
     private void initVision() {
         aprilTag = new AprilTagProcessor.Builder().build();
         visionPortal = new VisionPortal.Builder()
@@ -163,14 +167,20 @@ public class TeleOpStarTechNew extends OpMode {
         // --- Driver-Assist Automation Trigger ---
         if (currentGamepad1.start && !previousGamepad1.start) {
             // On START button press, navigate to a preset position based on the starting side.
-            Pose targetPose = (autoStartingSide > 0) ? 
-                                new Pose(24, 72, Math.toRadians(90)) : // Blue side target
-                                new Pose(120, 72, Math.toRadians(90));   // Red side target
+            Pose currentPose = follower.getPose();
+            Pose targetPose = (autoStartingSide > 0) ?
+                    new Pose(105, 34, Math.toRadians(90)) : // Blue side target
+                    new Pose(39, 34, Math.toRadians(90));   // Red side target
+
+            // This builds a two-stage path: first move to the location, then turn to the final heading.
+            // This ensures the final heading is always correct, regardless of the starting orientation.
+            Pose intermediatePose = new Pose(targetPose.getX(), targetPose.getY(), currentPose.getHeading());
 
             PathChain pathToTarget = follower.pathBuilder()
-                    .addPath(new BezierLine(follower.getPose(), targetPose))
+                    .addPath(new BezierLine(currentPose, intermediatePose)) // 1. Go to correct X,Y
+                    .addPath(new BezierLine(intermediatePose, targetPose)) // 2. Turn to correct heading
                     .build();
-            
+
             follower.followPath(pathToTarget);
         }
 
@@ -179,12 +189,60 @@ public class TeleOpStarTechNew extends OpMode {
         if (currentGamepad1.b && !previousGamepad1.b) intake = !intake;
         if (currentGamepad1.x && !previousGamepad1.x) outtake = !outtake;
         if (currentGamepad1.y && !previousGamepad1.y) reverse = !reverse;
-        
+
         // --- Separator Manual Override ---
-        if (currentGamepad1.dpad_down && !previousGamepad1.dpad_down) manualSeparatorMode = false; // Return to AUTO mode
+        if (currentGamepad1.dpad_down && !previousGamepad1.dpad_down) {
+            manualSeparatorMode = false;
+        } // Return to AUTO mode
         if (currentGamepad1.dpad_up && !previousGamepad1.dpad_up) {
             manualSeparatorMode = true;  // Activate MANUAL mode
             sep = !sep; // Manually toggle separator position
+        }
+
+        // --- Auto-Aim to Backdrop ---
+        if (currentGamepad1.dpad_left && !previousGamepad1.dpad_left) {
+            int goalTagId = (autoStartingSide > 0) ? 20 : 24; // Blue: 20, Red: 24
+            AprilTagDetection goalTag = null;
+
+            List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+            for (AprilTagDetection detection : currentDetections) {
+                if (detection.metadata != null && detection.id == goalTagId) {
+                    goalTag = detection;
+                    break;
+                }
+            }
+
+            if (goalTag != null && goalTag.ftcPose != null) {
+                // We have a visible tag, let's align to it by both strafing and turning.
+                Pose currentPose = follower.getPose();
+                double currentHeading = currentPose.getHeading();
+
+                // ftcPose.x is the lateral error in inches. A positive value means the tag is to the robot's right.
+                // We need to strafe right by this amount.
+                double strafeCorrectionInches = goalTag.ftcPose.x;
+
+                // ftcPose.bearing is the rotational error in degrees. A positive value means the tag is to the left (CCW).
+                // We need to turn left by this amount.
+                double headingCorrectionRad = Math.toRadians(goalTag.ftcPose.bearing);
+
+                // Calculate the target field position by applying the strafe correction.
+                // A right strafe vector in field coordinates is (sin(H), -cos(H)).
+                double targetX = currentPose.getX() + (strafeCorrectionInches * Math.sin(currentHeading));
+                double targetY = currentPose.getY() - (strafeCorrectionInches * Math.cos(currentHeading));
+
+                // Calculate the target heading by applying the bearing correction.
+                double targetHeading = currentHeading + headingCorrectionRad;
+
+                // Create a new target pose that both strafes and turns.
+                Pose targetPose = new Pose(targetX, targetY, targetHeading);
+
+                // Build a path to execute the alignment maneuver.
+                PathChain alignPath = follower.pathBuilder()
+                        .addPath(new BezierLine(currentPose, targetPose))
+                        .build();
+
+                follower.followPath(alignPath);
+            }
         }
 
         // --- Direct Servo/Motor Control ---
@@ -196,7 +254,7 @@ public class TeleOpStarTechNew extends OpMode {
         if (!manualSeparatorMode && intake) {
             boolean ballIsCurrentlyPresent = robot.sensorDistance.getDistance(DistanceUnit.INCH) < BALL_DETECTION_THRESHOLD_INCH;
             // Rising-edge detector: triggers only on the frame a new ball is seen
-            if (ballIsCurrentlyPresent && !ballWasPresent) { 
+            if (ballIsCurrentlyPresent && !ballWasPresent) {
                 if (ballCount < 3) ballCount++; // Increment ball count, max 3
                 // Core logic: only toggle the separator for the VERY FIRST ball
                 if (ballCount == 1) sep = !sep;
@@ -236,7 +294,7 @@ public class TeleOpStarTechNew extends OpMode {
         for (AprilTagDetection detection : currentDetections) {
             if (detection.metadata != null && detection.id == goalTagId) {
                 goalTag = detection;
-                break; 
+                break;
             }
         }
 
@@ -246,7 +304,7 @@ public class TeleOpStarTechNew extends OpMode {
             double theta_rad = Math.toRadians(SHOOT_ANGLE_DEG);
             double y = BASKET_HEIGHT_M - ROBOT_SHOOT_HEIGHT_M;
             double cos_theta = Math.cos(theta_rad);
-            
+
             // Solves the projectile motion equation for the required initial velocity
             double denominator = 2 * cos_theta * cos_theta * (distance_m * Math.tan(theta_rad) - y);
 
@@ -255,11 +313,11 @@ public class TeleOpStarTechNew extends OpMode {
                 double v_wheel = v_ball * SLIP_FACTOR; // Compensate for slip
                 double omega_wheel = v_wheel / (WHEEL_DIAMETER_M / 2.0); // rad/s
                 double calculatedRpm = omega_wheel * 60.0 / (2.0 * Math.PI);
-                
+
                 targetRpm = Math.max(MIN_RPM, Math.min(calculatedRpm, MAX_RPM));
             }
         }
-        
+
         double targetVelocity = (targetRpm / 60.0) * TICKS_PER_REV;
         robot.outtakeLeft.setVelocity(targetVelocity);
         robot.outtakeRight.setVelocity(targetVelocity);
@@ -287,7 +345,7 @@ public class TeleOpStarTechNew extends OpMode {
 
     private void updateTelemetry() {
         telemetry.addData("Position", follower.getPose());
-        telemetry.addData("Shooter Target RPM", outtake ? String.format("%.0f", (lastShooterVelocity*60/TICKS_PER_REV)) : "OFF");
+        telemetry.addData("Shooter Target RPM", outtake ? String.format("%.0f", (lastShooterVelocity * 60 / TICKS_PER_REV)) : "OFF");
         telemetry.addData("Shooter Actual Vel L|R", "%.1f | %.1f", robot.outtakeLeft.getVelocity(), robot.outtakeRight.getVelocity());
         telemetry.addData("Separator Mode", manualSeparatorMode ? "MANUAL" : "AUTO");
         telemetry.addData("Ball Count", ballCount);
