@@ -128,6 +128,8 @@ public class AutonomousStarTechNew extends LinearOpMode {
         // --- Vision init (AprilTag) ---
         try {
             aprilTag = new AprilTagProcessor.Builder()
+                    .setLensIntrinsics(822.317, 822.317, 319.495, 242.502)
+                    .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
                     .build();
             visionPortal = new VisionPortal.Builder()
                     .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
