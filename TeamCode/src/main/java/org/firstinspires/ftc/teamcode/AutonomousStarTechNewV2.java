@@ -2,30 +2,27 @@ package org.firstinspires.ftc.teamcode;
 
 // Autonomous NexGen – Now using a modular ShooterManager and central RobotConstants
 
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.util.ElapsedTime;
-
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
-import org.firstinspires.ftc.teamcode.camera.CameraSettingsManager;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import org.firstinspires.ftc.teamcode.pedroPathing.OpModeData;
+import org.firstinspires.ftc.teamcode.pedroPathing.PoseStorage;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
-import org.firstinspires.ftc.teamcode.pedroPathing.PoseStorage;
-import org.firstinspires.ftc.teamcode.pedroPathing.OpModeData;
-
 import java.util.Collections;
 import java.util.List;
 
-@Autonomous(name = "Autonomous StarTech V1", group = "Opmode")
-public class AutonomousStarTechNew extends LinearOpMode {
+@Autonomous(name = "Autonomous StarTech V2", group = "Opmode")
+public class AutonomousStarTechNewV2 extends LinearOpMode {
 
     // --- Core Robot Components ---
     HardwareBox robot = new HardwareBox();
@@ -33,12 +30,17 @@ public class AutonomousStarTechNew extends LinearOpMode {
     private VisionPortal visionPortal;
     private AprilTagProcessor aprilTag;
     private ShooterManager shooterManager;
-    //private TelemetryPanel panel;
-
-    private CameraSettingsManager camMgr;
 
     // --- State machine ---
-    private enum State { SETUP, MOVE_TO_SHOOT, WAIT_FOR_MOVE, FINE_AIM, WAIT_FOR_FINE_AIM, CHECK_SPEED, FIRE, NEXT_SHOT, PARK, WAIT_FOR_PARK, END }
+    private enum State { 
+        SETUP, 
+        MOVE_TO_SHOOT, WAIT_FOR_MOVE, 
+        FINE_AIM, WAIT_FOR_FINE_AIM, 
+        CHECK_SPEED, FIRE, NEXT_SHOT, 
+        MOVE_TO_BALL, WAIT_FOR_BALL_MOVE, TILT_CAMERA, AIM_AT_BALL, WAIT_FOR_BALL_AIM, // New states for ball alignment
+        PARK, WAIT_FOR_PARK, 
+        END 
+    }
     private State currentState = State.SETUP;
     private final ElapsedTime timer = new ElapsedTime();
 
@@ -54,6 +56,47 @@ public class AutonomousStarTechNew extends LinearOpMode {
     private int shotIndex = 0;
     private PathChain pathToShoot = null;
     private PathChain pathToPark  = null;
+    private Pose targetBallPose = null;
+
+    // --- Constants for Ball Alignment ---
+    private static final double CAMERA_FORWARD_OFFSET = 9.0; // User specified 9in
+    private static final double CAMERA_MOUNT_HEIGHT_INCHES = 12.0; // Camera height from the ground (TUNE THIS)
+    private static final double BALL_DIAMETER_INCHES = 5.0;
+    private static final double ROBOT_ALIGN_TO_BALL_DIST_IN = 9.0; // How far from the ball the robot should stop
+
+    // Ball positions (own half)
+    private static final Pose[] BALLS_BLUE3 = new Pose[] {
+            new Pose(19.0, 84.0, 0.0),
+            new Pose(24.0, 84.0, 0.0),
+            new Pose(29.0, 84.0, 0.0)
+    };
+    private static final Pose[] BALLS_BLUE2 = new Pose[] {
+            new Pose(19.0, 60.0, 0.0),
+            new Pose(24.0, 60.0, 0.0),
+            new Pose(29.0, 60.0, 0.0)
+    };
+    private static final Pose[] BALLS_BLUE1 = new Pose[] {
+            new Pose(19.0, 36.0, 0.0),
+            new Pose(24.0, 36.0, 0.0),
+            new Pose(29.0, 36.0, 0.0)
+    };
+    private static final Pose[] BALLS_RED3  = new Pose[] {
+            new Pose(115.0, 84.0, 0.0),
+            new Pose(120.0, 84.0, 0.0),
+            new Pose(125.0, 84.0, 0.0)
+    };
+    private static final Pose[] BALLS_RED2  = new Pose[] {
+            new Pose(115.0, 60.0, 0.0),
+            new Pose(120.0, 60.0, 0.0),
+            new Pose(125.0, 60.0, 0.0)
+    };
+    private static final Pose[] BALLS_RED1  = new Pose[] {
+            new Pose(115.0, 36.0, 0.0),
+            new Pose(120.0, 36.0, 0.0),
+            new Pose(125.0, 36.0, 0.0)
+    };
+
+    private static Pose[] SELECTED_SET = new Pose[]{};
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -64,7 +107,6 @@ public class AutonomousStarTechNew extends LinearOpMode {
         shooterManager = new ShooterManager(robot.outtakeLeft, robot.outtakeRight, hardwareMap.voltageSensor.iterator().next());
 
         initVision();
-        //panel = new TelemetryPanel(telemetry, visionPortal, aprilTag);
 
         // --- INIT Loop ---
         while (opModeInInit()) {
@@ -149,15 +191,43 @@ public class AutonomousStarTechNew extends LinearOpMode {
                     if (shotIndex < sequence.length) {
                         currentState = State.CHECK_SPEED;
                     } else {
-                        Pose park = new Pose(follower.getPose().getX() + 25 * initialSide, follower.getPose().getY(), follower.getPose().getHeading());
-                        pathToPark = follower.pathBuilder().addPath(new BezierLine(follower.getPose(), park)).build();
-                        follower.followPath(pathToPark);
-                        currentState = State.WAIT_FOR_PARK;
+                        // All shots fired, now move to the ball
+                        goToBall();
+                        currentState = State.WAIT_FOR_BALL_MOVE;
                         timer.reset();
                     }
                 }
                 break;
-            case WAIT_FOR_PARK:
+
+            // --- New States for Ball Alignment ---
+            case WAIT_FOR_BALL_MOVE:
+                if (!follower.isBusy()) {
+                    currentState = State.TILT_CAMERA;
+                    timer.reset();
+                }
+                break;
+            
+            case TILT_CAMERA:
+                calculateAndSetCameraTilt();
+                sleep(500); // Wait for servo to move
+                currentState = State.AIM_AT_BALL;
+                timer.reset();
+                break;
+
+            case AIM_AT_BALL:
+                aimAtBall();
+                currentState = State.WAIT_FOR_BALL_AIM;
+                timer.reset();
+                break;
+
+            case WAIT_FOR_BALL_AIM:
+                if (!follower.isBusy()) {
+                    currentState = State.END; // End of autonomous after aligning to ball
+                }
+                break;
+
+            case PARK:
+                 // This state is now effectively bypassed, but left for potential future use.
                 if (!follower.isBusy() || timer.seconds() > 3.0) {
                     currentState = State.END;
                 }
@@ -178,24 +248,14 @@ public class AutonomousStarTechNew extends LinearOpMode {
     private void initVision() {
          try {
             aprilTag = new AprilTagProcessor.Builder()
-                    //.setLensIntrinsics(30.1374, 28.1888, 314.3062, 241.3251) // Based on your camera calibration
+                    .setLensIntrinsics(886.3435, 886.3871, 327.3383, 250.4806) // Based on your camera calibration
                     .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
                     .build();
             visionPortal = new VisionPortal.Builder()
                     .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
                     .addProcessor(aprilTag)
                     .build();
-
-
-            // Kamera profil betöltés és alkalmazás (aktív profil)
-            camMgr = new CameraSettingsManager(telemetry);
-            camMgr.loadActiveProfile();
-            camMgr.setProfile(camMgr.getProfile());
-            camMgr.load();
-            camMgr.attachAndApply(visionPortal);
-
-
-         } catch (Exception e) {
+        } catch (Exception e) {
             aprilTag = null; visionPortal = null;
         }
     }
@@ -203,7 +263,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
     private void handleSetup() {
         List<AprilTagDetection> dets = (aprilTag != null) ? aprilTag.getDetections() : Collections.emptyList();
         AprilTagDetection obelisk = null;
-        AprilTagDetection backGoal = null;
+        AprilTagDetection backdrop = null;
         double bestRange = Double.MAX_VALUE;
 
         for (AprilTagDetection d : dets) {
@@ -212,62 +272,31 @@ public class AutonomousStarTechNew extends LinearOpMode {
             if (d.id == RobotConstants.BLUE_GOAL_TAG_ID || d.id == RobotConstants.RED_GOAL_TAG_ID) {
                 if (d.ftcPose.range < bestRange) {
                     bestRange = d.ftcPose.range;
-                    backGoal = d;
+                    backdrop = d;
                 }
             }
         }
 
-        if (obelisk == null || backGoal == null) return;
+        if (obelisk == null || backdrop == null) return;
 
         initialSide = (obelisk.ftcPose.x < 0) ? -1 : 1;
         foundID = obelisk.id;
-        backdropId = backGoal.id;
+        backdropId = backdrop.id;
         sequence = getSequenceForID(foundID);
         stayAndTurnMode = Math.abs(obelisk.ftcPose.yaw) < RobotConstants.OBELISK_YAW_THRESHOLD_DEG;
 
-        Pose landmarkPose = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;//(16.01,133.28,-126.0)
+        Pose landmarkPose = (backdrop.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;
+        double robotHeadingRad = landmarkPose.getHeading() - Math.toRadians(backdrop.ftcPose.yaw);
+        double angleToTag_world = robotHeadingRad + Math.toRadians(backdrop.ftcPose.bearing);
+        double cameraX = landmarkPose.getX() - backdrop.ftcPose.range * Math.cos(angleToTag_world);
+        double cameraY = landmarkPose.getY() - backdrop.ftcPose.range * Math.sin(angleToTag_world);
+        double robotX = cameraX - CAMERA_FORWARD_OFFSET * Math.cos(robotHeadingRad);
+        double robotY = cameraY - CAMERA_FORWARD_OFFSET * Math.sin(robotHeadingRad);
+        startPose = new Pose(robotX, robotY, robotHeadingRad);
 
-        double robotHeadingRad = landmarkPose.getHeading() - Math.toRadians(backGoal.ftcPose.yaw); //-3.3543 //-2.3402
-
-        /*
-         double x_cam = backGoal.ftcPose.x;
-         double y_cam = backGoal.ftcPose.y;
-
-         double cosH = Math.cos(robotHeadingRad);
-         double sinH = Math.sin(robotHeadingRad);
-         double dx_world = x_cam * cosH - y_cam * sinH;
-         double dy_world = x_cam * sinH + y_cam * cosH;
-
-         double cameraX = landmarkPose.getX() - dx_world;
-         double cameraY = landmarkPose.getY() - dy_world;
-         */
-
-        //TODO check if + or -
-        double angleToTag_world = robotHeadingRad - Math.toRadians(backGoal.ftcPose.bearing);//-2.9020 //-2.2535
-
-        double cameraX = landmarkPose.getX() - backGoal.ftcPose.range * Math.cos(angleToTag_world);// cameraX 47.4378
-        double cameraY = landmarkPose.getY() - backGoal.ftcPose.range * Math.sin(angleToTag_world);//cameraY  angleToTag_w -2.2565
-
-
-        double robotX = cameraX - RobotConstants.CAMERA_FORWARD_OFFSET * Math.cos(robotHeadingRad);//robotX 56.4821 cameraX 47.4378
-        double robotY = cameraY - RobotConstants.CAMERA_FORWARD_OFFSET * Math.sin(robotHeadingRad);//robotY 181.0305 cameraY: 171.6924
-        startPose = new Pose(robotX, robotY, robotHeadingRad);//(56.4821, 181.0305, -134.0843) //
-        //startPose = new Pose(72, 76, Math.toRadians(134));
-
-        Pose correctLandmark = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;//(16.01, 133.28, -126.0)
-        Pose baseLandmark = (Math.abs(backGoal.ftcPose.yaw) > RobotConstants.YAW_THRESHOLD_DEG) ? correctLandmark : landmarkPose;
-        shootPose = new Pose(
-                baseLandmark.getX() + initialSide * RobotConstants.X_OFFSET_IN,
-                baseLandmark.getY() - RobotConstants.Y_OFFSET_IN,
-                baseLandmark.getHeading());//(-3.9899, 85.28, -126.0)
-
-
-        telemetry.addData("Tag Distance (in)", "%.2f", backGoal.ftcPose.range);
-        telemetry.addData("x Distance", "%.2f", backGoal.ftcPose.x);
-        telemetry.addData("y Distance", "%.2f", backGoal.ftcPose.y);
-        telemetry.addData("yaw", "%.2f", backGoal.ftcPose.yaw);
-        telemetry.addData("bearing", "%.2f", backGoal.ftcPose.bearing);
-
+        Pose correctLandmark = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;
+        Pose baseLandmark = (Math.abs(backdrop.ftcPose.yaw) > RobotConstants.YAW_THRESHOLD_DEG) ? correctLandmark : landmarkPose;
+        shootPose = new Pose(baseLandmark.getX() - initialSide * RobotConstants.X_OFFSET_IN, baseLandmark.getY() - RobotConstants.Y_OFFSET_IN, baseLandmark.getHeading());
     }
 
     private void startFineAim() {
@@ -275,7 +304,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
         if (current == null) return;
 
         double desiredHeading;
-        AprilTagDetection backdrop = getClosestBackGoal();
+        AprilTagDetection backdrop = getClosestBackdrop();
         if (backdrop != null && backdrop.ftcPose != null) {
             desiredHeading = current.getHeading() + Math.toRadians(backdrop.ftcPose.bearing);
         } else {
@@ -289,15 +318,12 @@ public class AutonomousStarTechNew extends LinearOpMode {
             computedDistanceInch = Math.hypot(targetX - current.getX(), targetY - current.getY());
             shooterManager.setSpeedFromDistance(computedDistanceInch);
         }
+        double esp = 0.1;
 
-        // Add a small "nudge" to the target pose to ensure the follower executes the turn.
-        // A pure zero-distance path can sometimes be ignored by the path follower.
-        double eps = 0.1; // A small nudge in inches
         Pose target = new Pose(
-                current.getX() + eps * Math.cos(desiredHeading),
-                current.getY() + eps * Math.sin(desiredHeading),
+                current.getX() + esp * Math.cos(desiredHeading),
+                current.getY() + esp * Math.sin(desiredHeading),
                 desiredHeading);
-
         PathChain fine = follower.pathBuilder()
                 .addPath(new BezierLine(current, target))
                 .setLinearHeadingInterpolation(current.getHeading(), desiredHeading)
@@ -317,7 +343,104 @@ public class AutonomousStarTechNew extends LinearOpMode {
         sleep((long)(RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
     }
 
-    private AprilTagDetection getClosestBackGoal() {
+    /**
+     * Finds the closest ball, calculates a path to it, and starts the follower.
+     */
+    private void goToBall() {
+        Pose currentPose = follower.getPose();
+        targetBallPose = findClosestBall(currentPose);
+
+        if (targetBallPose == null) {
+            currentState = State.END; // No ball found, end the routine
+            return;
+        }
+
+        // Calculate a stopping point in front of the ball, facing it
+        double angleToBall = Math.atan2(targetBallPose.getY() - currentPose.getY(), targetBallPose.getX() - currentPose.getX());
+        double stopPointX = targetBallPose.getX() - ROBOT_ALIGN_TO_BALL_DIST_IN * Math.cos(angleToBall);
+        double stopPointY = targetBallPose.getY() - ROBOT_ALIGN_TO_BALL_DIST_IN * Math.sin(angleToBall);
+
+        Pose goToBallPose = new Pose(stopPointX, stopPointY, angleToBall);
+
+        PathChain pathToBall = follower.pathBuilder()
+                .addPath(new BezierLine(currentPose, goToBallPose))
+                .build();
+        follower.followPath(pathToBall);
+    }
+
+    /**
+     * Dynamically calculates the required camera tilt to see the target ball and sets the servo.
+     */
+    private void calculateAndSetCameraTilt() {
+        if (targetBallPose == null) return;
+        Pose currentPose = follower.getPose();
+        if (currentPose == null) return;
+
+        double distanceToBall = Math.hypot(currentPose.getX() - targetBallPose.getX(), currentPose.getY() - targetBallPose.getY());
+        double heightDifference = CAMERA_MOUNT_HEIGHT_INCHES - (BALL_DIAMETER_INCHES / 2.0);
+
+        // Calculate the required angle using arctangent
+        double requiredAngleRad = Math.atan2(heightDifference, distanceToBall);
+        double requiredAngleDeg = Math.toDegrees(requiredAngleRad);
+
+        // Convert angle to servo position (0-1). Assumes 0 deg = 0.0 and 90 deg = 1.0
+        // This mapping may need to be tuned based on your specific servo setup.
+        double servoPosition = requiredAngleDeg / 90.0;
+        servoPosition = Math.max(0.0, Math.min(servoPosition, 1.0)); // Clamp between 0 and 1
+
+        // IMPORTANT: Make sure "cameraTilt" servo is configured in HardwareBox.java
+        robot.cameraTilt.setPosition(servoPosition);
+        telemetry.addData("Camera Tilt", "Calculated: %.2f for %.1f deg", servoPosition, requiredAngleDeg);
+    }
+
+    /**
+     * Performs a final turn-in-place to aim perfectly at the target ball.
+     */
+    private void aimAtBall() {
+        if (targetBallPose == null) return;
+        Pose currentPose = follower.getPose();
+        if (currentPose == null) return;
+
+        double dx = targetBallPose.getX() - currentPose.getX();
+        double dy = targetBallPose.getY() - currentPose.getY();
+        double desiredHeading = Math.atan2(dy, dx);
+
+        // Use a zero-distance path to execute a turn-in-place
+        Pose targetHeadingPose = new Pose(currentPose.getX(), currentPose.getY(), desiredHeading);
+
+        PathChain aimPath = follower.pathBuilder()
+                .addPath(new BezierLine(currentPose, targetHeadingPose))
+                .setLinearHeadingInterpolation(currentPose.getHeading(), desiredHeading)
+                .build();
+        follower.followPath(aimPath);
+    }
+
+    /**
+     * Finds the closest ball from the relevant group based on the alliance side.
+     * @param currentPose The robot's current position on the field.
+     * @return The Pose of the closest ball, or null if none are available.
+     */
+    private Pose findClosestBall(Pose currentPose) {
+        if(currentPose.getY() > 72){
+            SELECTED_SET = (initialSide > 0) ? BALLS_BLUE3 : BALLS_RED3;
+        } else {
+            SELECTED_SET = (initialSide > 0) ? BALLS_BLUE1 : BALLS_RED1;
+        }
+        Pose[] ballGroup = SELECTED_SET;
+        Pose closestBall = null;
+        double minDistance = Double.MAX_VALUE;
+
+        for (Pose ball : ballGroup) {
+            double distance = Math.hypot(currentPose.getX() - ball.getX(), currentPose.getY() - ball.getY());
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestBall = ball;
+            }
+        }
+        return closestBall;
+    }
+
+    private AprilTagDetection getClosestBackdrop() {
         if (aprilTag == null) return null;
         List<AprilTagDetection> dets = aprilTag.getDetections();
         AprilTagDetection best = null;
@@ -350,16 +473,13 @@ public class AutonomousStarTechNew extends LinearOpMode {
         telemetry.addData("StartPose", startPose);
         telemetry.addData("ShootPose", shootPose);
         telemetry.addData("Distance (in)", computedDistanceInch);
-        //panel.update();
-        //panel.renderFull();
         telemetry.update();
     }
 
     private void displayRuntimeTelemetry() {
         telemetry.addData("State", currentState);
         telemetry.addData("Shooter", shooterManager.getTelemetryData());
-        //panel.update();
-       // panel.renderMinimal();
+        telemetry.addData("Target Ball", targetBallPose);
         telemetry.update();
     }
 }

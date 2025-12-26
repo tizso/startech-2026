@@ -52,20 +52,20 @@ public class HardwareBox extends LinearOpMode{
         outtakeRight = hwMap.get(DcMotorEx.class, "outtakeRight");
 
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
-        outtakeLeft.setDirection(DcMotorSimple.Direction.FORWARD);
-        outtakeRight.setDirection(DcMotorSimple.Direction.REVERSE);
+        outtakeLeft.setDirection(DcMotorEx.Direction.REVERSE);
+        outtakeRight.setDirection(DcMotorEx.Direction.FORWARD);
 
         intake.setPower(0);
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         outtakeLeft.setPower(0);
-        outtakeLeft.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        outtakeLeft.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        outtakeLeft.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+        outtakeLeft.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
         outtakeRight.setPower(0);
-        outtakeRight.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        outtakeRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        outtakeRight.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
+        outtakeRight.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
         //color = hardwareMap.get(NormalizedColorSensor.class, "color");
 
@@ -120,11 +120,11 @@ public class HardwareBox extends LinearOpMode{
         intake.setPower(value);
     }
 
-    public void setOuttake(double value){
+    /*public void setOuttake(double value){
         outtakeLeft.setVelocity(value);
         outtakeRight.setVelocity(value);
     }
-
+*/
 
     /*public void setServoInL(int value){
         servoInL.setPower(value);
