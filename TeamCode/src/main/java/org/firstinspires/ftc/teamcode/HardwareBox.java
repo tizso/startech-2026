@@ -52,7 +52,7 @@ public class HardwareBox extends LinearOpMode{
         outtakeRight = hwMap.get(DcMotorEx.class, "outtakeRight");
 
         intake.setDirection(DcMotorSimple.Direction.REVERSE);
-        outtakeLeft.setDirection(DcMotorEx.Direction.REVERSE);
+        outtakeLeft.setDirection(DcMotorEx.Direction.FORWARD);
         outtakeRight.setDirection(DcMotorEx.Direction.FORWARD);
 
         intake.setPower(0);

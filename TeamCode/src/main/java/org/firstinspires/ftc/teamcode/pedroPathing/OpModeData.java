@@ -14,6 +14,8 @@ public class OpModeData {
      */
     public static Pose lastPose = null;
 
+    public static Pose backGoalPose = null;
+
     /**
      * The starting side determined in the autonomous program (-1: left, 1: right).
      */

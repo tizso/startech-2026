@@ -1,9 +1,8 @@
 package org.firstinspires.ftc.teamcode;
 
-// Autonomous NexGen – Now using a modular ShooterManager and central RobotConstants
-
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import com.pedropathing.follower.Follower;
@@ -33,12 +32,11 @@ public class AutonomousStarTechNew extends LinearOpMode {
     private VisionPortal visionPortal;
     private AprilTagProcessor aprilTag;
     private ShooterManager shooterManager;
-    //private TelemetryPanel panel;
-
     private CameraSettingsManager camMgr;
 
     // --- State machine ---
-    private enum State { SETUP, MOVE_TO_SHOOT, WAIT_FOR_MOVE, FINE_AIM, WAIT_FOR_FINE_AIM, CHECK_SPEED, FIRE, NEXT_SHOT, PARK, WAIT_FOR_PARK, END }
+    private enum State {SETUP, MOVE_TO_SHOOT, WAIT_FOR_MOVE, FINE_AIM, WAIT_FOR_FINE_AIM, CHECK_SPEED, FIRE, NEXT_SHOT, PARK, WAIT_FOR_PARK, END}
+
     private State currentState = State.SETUP;
     private final ElapsedTime timer = new ElapsedTime();
 
@@ -50,10 +48,10 @@ public class AutonomousStarTechNew extends LinearOpMode {
     private Pose shootPose = null;
     private int foundID = -1;
     private int backdropId = -1;
-    private char[] sequence = {'P','P','P'};
+    private char[] sequence = {'P', 'P', 'P'};
     private int shotIndex = 0;
     private PathChain pathToShoot = null;
-    private PathChain pathToPark  = null;
+    private PathChain pathToPark = null;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -64,7 +62,6 @@ public class AutonomousStarTechNew extends LinearOpMode {
         shooterManager = new ShooterManager(robot.outtakeLeft, robot.outtakeRight, hardwareMap.voltageSensor.iterator().next());
 
         initVision();
-        //panel = new TelemetryPanel(telemetry, visionPortal, aprilTag);
 
         // --- INIT Loop ---
         while (opModeInInit()) {
@@ -75,7 +72,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
             if (startPose != null && shootPose != null) {
                 double dx = shootPose.getX() - startPose.getX();
                 double dy = shootPose.getY() - startPose.getY();
-                computedDistanceInch = Math.sqrt(dx*dx + dy*dy);
+                computedDistanceInch = Math.sqrt(dx * dx + dy * dy);
                 if (pathToShoot == null) {
                     pathToShoot = follower.pathBuilder()
                             .addPath(new BezierLine(follower.getPose(), shootPose))
@@ -83,7 +80,6 @@ public class AutonomousStarTechNew extends LinearOpMode {
                             .build();
                 }
             }
-            displayInitTelemetry();
         }
 
         // --- START ---
@@ -139,7 +135,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
                 }
                 break;
             case FIRE:
-                fireBall(sequence[shotIndex]);
+                fireBall(sequence[shotIndex], shotIndex);
                 currentState = State.NEXT_SHOT;
                 timer.reset();
                 break;
@@ -149,7 +145,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
                     if (shotIndex < sequence.length) {
                         currentState = State.CHECK_SPEED;
                     } else {
-                        Pose park = new Pose(follower.getPose().getX() + 25 * initialSide, follower.getPose().getY(), follower.getPose().getHeading());
+                        Pose park = new Pose(follower.getPose().getX(), 40, Math.toRadians(90));
                         pathToPark = follower.pathBuilder().addPath(new BezierLine(follower.getPose(), park)).build();
                         follower.followPath(pathToPark);
                         currentState = State.WAIT_FOR_PARK;
@@ -166,9 +162,10 @@ public class AutonomousStarTechNew extends LinearOpMode {
                 shooterManager.stop();
                 Pose finalPose = follower.getPose();
                 if (finalPose != null) {
-                    PoseStorage.savePoseToFile(finalPose, initialSide);
+                    PoseStorage.savePoseToFile(finalPose, initialSide, backGoalPose);
                     OpModeData.lastPose = finalPose;
                     OpModeData.initialSide = initialSide;
+                    OpModeData.backGoalPose = backGoalPose;
                 }
                 requestOpModeStop();
                 break;
@@ -176,9 +173,8 @@ public class AutonomousStarTechNew extends LinearOpMode {
     }
 
     private void initVision() {
-         try {
+        try {
             aprilTag = new AprilTagProcessor.Builder()
-                    //.setLensIntrinsics(30.1374, 28.1888, 314.3062, 241.3251) // Based on your camera calibration
                     .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
                     .build();
             visionPortal = new VisionPortal.Builder()
@@ -186,19 +182,19 @@ public class AutonomousStarTechNew extends LinearOpMode {
                     .addProcessor(aprilTag)
                     .build();
 
-
-            // Kamera profil betöltés és alkalmazás (aktív profil)
             camMgr = new CameraSettingsManager(telemetry);
             camMgr.loadActiveProfile();
             camMgr.setProfile(camMgr.getProfile());
             camMgr.load();
             camMgr.attachAndApply(visionPortal);
 
-
-         } catch (Exception e) {
-            aprilTag = null; visionPortal = null;
+        } catch (Exception e) {
+            aprilTag = null;
+            visionPortal = null;
         }
     }
+
+    private Pose backGoalPose = null;
 
     private void handleSetup() {
         List<AprilTagDetection> dets = (aprilTag != null) ? aprilTag.getDetections() : Collections.emptyList();
@@ -219,57 +215,79 @@ public class AutonomousStarTechNew extends LinearOpMode {
 
         if (obelisk == null || backGoal == null) return;
 
-        initialSide = (obelisk.ftcPose.x < 0) ? -1 : 1;
+
+        stayAndTurnMode = Math.abs(obelisk.ftcPose.yaw) < RobotConstants.OBELISK_YAW_THRESHOLD_DEG;
         foundID = obelisk.id;
         backdropId = backGoal.id;
         sequence = getSequenceForID(foundID);
-        stayAndTurnMode = Math.abs(obelisk.ftcPose.yaw) < RobotConstants.OBELISK_YAW_THRESHOLD_DEG;
 
-        Pose landmarkPose = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;//(16.01,133.28,-126.0)
+        Pose baseLandmark;
 
-        double robotHeadingRad = landmarkPose.getHeading() - Math.toRadians(backGoal.ftcPose.yaw); //-3.3543 //-2.3402
-
-        /*
-         double x_cam = backGoal.ftcPose.x;
-         double y_cam = backGoal.ftcPose.y;
-
-         double cosH = Math.cos(robotHeadingRad);
-         double sinH = Math.sin(robotHeadingRad);
-         double dx_world = x_cam * cosH - y_cam * sinH;
-         double dy_world = x_cam * sinH + y_cam * cosH;
-
-         double cameraX = landmarkPose.getX() - dx_world;
-         double cameraY = landmarkPose.getY() - dy_world;
-         */
-
-        //TODO check if + or -
-        double angleToTag_world = robotHeadingRad - Math.toRadians(backGoal.ftcPose.bearing);//-2.9020 //-2.2535
-
-        double cameraX = landmarkPose.getX() - backGoal.ftcPose.range * Math.cos(angleToTag_world);// cameraX 47.4378
-        double cameraY = landmarkPose.getY() - backGoal.ftcPose.range * Math.sin(angleToTag_world);//cameraY  angleToTag_w -2.2565
+        double robotHeadingRad = 0;
+        double robotX = 0;
+        double robotY = 0;
+        double shootHeading = 0;
 
 
-        double robotX = cameraX - RobotConstants.CAMERA_FORWARD_OFFSET * Math.cos(robotHeadingRad);//robotX 56.4821 cameraX 47.4378
-        double robotY = cameraY - RobotConstants.CAMERA_FORWARD_OFFSET * Math.sin(robotHeadingRad);//robotY 181.0305 cameraY: 171.6924
-        startPose = new Pose(robotX, robotY, robotHeadingRad);//(56.4821, 181.0305, -134.0843) //
+        backGoalPose = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;//(16.01,133.28,-126.0)
+        robotHeadingRad = Math.abs(Math.toDegrees(backGoalPose.getHeading())) - (backGoal.ftcPose.yaw - backGoal.ftcPose.bearing);
+        if (stayAndTurnMode) {
+            baseLandmark = backGoalPose;
+            initialSide = (obelisk.ftcPose.x < 0) ? -1 : 1;
+            ///robotHeadingRad = Math.abs(Math.toDegrees(backGoalPose.getHeading())) - (backGoal.ftcPose.yaw - backGoal.ftcPose.bearing);
+            shootHeading = robotHeadingRad;
+            robotX = backGoalPose.getX() - backGoal.ftcPose.x;
+            robotY = backGoalPose.getY() - backGoal.ftcPose.y - RobotConstants.CAMERA_FORWARD_OFFSET;
+
+        } else {
+            double x = backGoal.ftcPose.x;
+            double y = backGoal.ftcPose.y;
+            double p = Math.sqrt(y * y + x * x);
+            baseLandmark = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.RED_BACKDROP_POSE : RobotConstants.BLUE_BACKDROP_POSE;
+            shootHeading = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? 245 : 60;
+            initialSide = (obelisk.ftcPose.x > 0) ? -1 : 1;
+            //robotHeadingRad = Math.toDegrees(backGoalPose.getHeading()) - (backGoal.ftcPose.bearing*initialSide);
+            robotX = backGoalPose.getX() - ((p- RobotConstants.CAMERA_FORWARD_OFFSET)*initialSide);
+            robotY = backGoalPose.getY() - ((x - RobotConstants.CAMERA_FORWARD_OFFSET)*initialSide);
+        }
+
+
+        startPose = new Pose(robotX, robotY, Math.toRadians(robotHeadingRad));//(56.4821, 181.0305, -134.0843) //
         //startPose = new Pose(72, 76, Math.toRadians(134));
 
-        Pose correctLandmark = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;//(16.01, 133.28, -126.0)
-        Pose baseLandmark = (Math.abs(backGoal.ftcPose.yaw) > RobotConstants.YAW_THRESHOLD_DEG) ? correctLandmark : landmarkPose;
+        //Pose correctLandmark = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;//(16.01, 133.28, -126.0)
+        //baseLandmark = (Math.abs(backGoal.ftcPose.yaw) > RobotConstants.YAW_THRESHOLD_DEG) ? correctLandmark : backGoalPose;
         shootPose = new Pose(
-                baseLandmark.getX() + initialSide * RobotConstants.X_OFFSET_IN,
-                baseLandmark.getY() - RobotConstants.Y_OFFSET_IN,
-                baseLandmark.getHeading());//(-3.9899, 85.28, -126.0)
+                robotX + initialSide * RobotConstants.X_OFFSET_IN,
+                robotY - RobotConstants.Y_OFFSET_IN,
+                Math.toRadians(shootHeading));//(-3.9899, 85.28, -126.0)
 
-
+        telemetry.addLine("=== INIT PRECOMPUTE ===");
         telemetry.addData("Tag Distance (in)", "%.2f", backGoal.ftcPose.range);
-        telemetry.addData("x Distance", "%.2f", backGoal.ftcPose.x);
-        telemetry.addData("y Distance", "%.2f", backGoal.ftcPose.y);
-        telemetry.addData("yaw", "%.2f", backGoal.ftcPose.yaw);
-        telemetry.addData("bearing", "%.2f", backGoal.ftcPose.bearing);
+        telemetry.addData("BackGoal x Distance", "%.2f", backGoal.ftcPose.x);
+        telemetry.addData("BackGoal y Distance", "%.2f", backGoal.ftcPose.y);
+        telemetry.addData("BackGoal yaw", "%.2f", backGoal.ftcPose.yaw);
+        telemetry.addData("BackGoal bearing", "%.2f", backGoal.ftcPose.bearing);
+        telemetry.addData("Obelisk x", "%.2f", obelisk.ftcPose.x);
+        telemetry.addData("Obelisk y", "%.2f", obelisk.ftcPose.y);
+        telemetry.addData("Obelisk yaw", "%.2f", obelisk.ftcPose.yaw);
+        telemetry.addData("Obelisk bearing", "%.1f°", obelisk.ftcPose.bearing);
+        telemetry.addData("InitialSide", (initialSide > 0) ? "BLUE(+1)" : "RED(-1)");
+
+        telemetry.addData("Shooter Mode", ShooterManager.USE_ENCODER_FOR_SHOOTER ? "VELOCITY" : "POWER");
+        telemetry.addData("Stay and Turn Mode", stayAndTurnMode ? "ACTIVE" : "Inactive");
+        telemetry.addData("ObeliskID", foundID);
+        telemetry.addData("BackdropId", backdropId);
+        telemetry.addData("StartPose", startPose);
+        telemetry.addData("ShootPose", shootPose);
+        telemetry.addData("Distance (in)", computedDistanceInch);
+        telemetry.addData("Camera profile", camMgr.getProfile());
+
+        telemetry.update();
 
     }
 
+    double bbb = 0;
     private void startFineAim() {
         Pose current = follower.getPose();
         if (current == null) return;
@@ -277,44 +295,82 @@ public class AutonomousStarTechNew extends LinearOpMode {
         double desiredHeading;
         AprilTagDetection backdrop = getClosestBackGoal();
         if (backdrop != null && backdrop.ftcPose != null) {
-            desiredHeading = current.getHeading() + Math.toRadians(backdrop.ftcPose.bearing);
+            int rad = initialSide>0?35:25;
+            desiredHeading = current.getHeading() + (Math.toRadians(rad) * initialSide);
         } else {
-            desiredHeading = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE.getHeading() : RobotConstants.RED_BACKDROP_POSE.getHeading(); // Fallback
+            desiredHeading = shootPose.getHeading(); // Fallback
+            //desiredHeading = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE.getHeading() : RobotConstants.RED_BACKDROP_POSE.getHeading(); // Fallback
         }
 
-        if (RobotConstants.UPDATE_SPEED_ON_FINE_AIM) {
-            Pose landmark = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;
+        if (RobotConstants.UPDATE_SPEED_ON_FINE_AIM && backdrop != null && backdrop.ftcPose != null) {
+            /*Pose landmark = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;
             double targetX = landmark.getX() - initialSide * RobotConstants.X_OFFSET_IN;
             double targetY = landmark.getY() - RobotConstants.Y_OFFSET_IN;
-            computedDistanceInch = Math.hypot(targetX - current.getX(), targetY - current.getY());
+            computedDistanceInch = Math.hypot(targetX - current.getX(), targetY - current.getY());*/
+            computedDistanceInch = backdrop.ftcPose.range;
             shooterManager.setSpeedFromDistance(computedDistanceInch);
         }
 
         // Add a small "nudge" to the target pose to ensure the follower executes the turn.
         // A pure zero-distance path can sometimes be ignored by the path follower.
-        double eps = 0.1; // A small nudge in inches
-        Pose target = new Pose(
-                current.getX() + eps * Math.cos(desiredHeading),
-                current.getY() + eps * Math.sin(desiredHeading),
-                desiredHeading);
-
+        double eps = 1.0; // A small nudge in inches
+        Pose target;
+        if(stayAndTurnMode){
+            target = new Pose(
+                    current.getX()+eps,
+                    current.getY() + eps,
+                    desiredHeading);
+        } else {
+            target = new Pose(
+                    shootPose.getX(),
+                    shootPose.getY() + eps,
+                    shootPose.getHeading());
+        }
         PathChain fine = follower.pathBuilder()
                 .addPath(new BezierLine(current, target))
                 .setLinearHeadingInterpolation(current.getHeading(), desiredHeading)
                 .build();
         follower.followPath(fine);
     }
-    
-    private void fireBall(char type) {
-        if (type == 'G') {
-            robot.servoInL.setPower(1.0);
-        } else {
-            robot.servoInR.setPower(1.0);
+
+    private void fireBall(char type, int idx) {
+        robot.servoInR.setDirection(DcMotorSimple.Direction.FORWARD);
+
+        if (foundID == 21) {
+            if (type == 'G') {
+                robot.servoInL.setPower(1.0);
+            } else if (idx == 1 && type == 'P') {
+                robot.servoInR.setPower(1.0);
+            } else if (idx == 2) {
+                robot.intake.setPower(1);
+                sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
+                robot.intake.setPower(0);
+                sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
+                robot.servoInR.setPower(1.0);
+            }
+        } else if (foundID == 22) {
+            if (idx == 0 && type == 'P') {
+                robot.servoInR.setPower(1.0);
+            } else if (idx == 1 && type == 'G') {
+                robot.servoInL.setPower(1.0);
+            } else if (idx == 2 && type == 'P') {
+                robot.intake.setPower(1);
+                sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
+                robot.intake.setPower(0);
+                robot.servoInR.setPower(1.0);
+            }
+        } else if (foundID == 23) {
+            if (idx == 0 && type == 'P') {
+                robot.servoInR.setPower(1.0);
+            } else if (idx == 1 && type == 'P') {
+                robot.intake.setPower(1);
+                sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
+                robot.intake.setPower(0);
+                robot.servoInR.setPower(1.0);
+            } else if (idx == 2 && type == 'G') {
+                robot.servoInL.setPower(1.0);
+            }
         }
-        sleep((long)(RobotConstants.SHOOTING_SERVO_RUN_TIME_SEC * 1000));
-        robot.servoInL.setPower(0.0);
-        robot.servoInR.setPower(0.0);
-        sleep((long)(RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
     }
 
     private AprilTagDetection getClosestBackGoal() {
@@ -335,9 +391,12 @@ public class AutonomousStarTechNew extends LinearOpMode {
 
     private char[] getSequenceForID(int id) {
         switch (id) {
-            case 21: return new char[]{'G','P','P'};
-            case 22: return new char[]{'P','G','P'};
-            default: return new char[]{'P','P','G'};
+            case 21:
+                return new char[]{'G', 'P', 'P'};
+            case 22:
+                return new char[]{'P', 'G', 'P'};
+            default:
+                return new char[]{'P', 'P', 'G'};
         }
     }
 
@@ -356,10 +415,17 @@ public class AutonomousStarTechNew extends LinearOpMode {
     }
 
     private void displayRuntimeTelemetry() {
+        Pose current = follower.getPose();
         telemetry.addData("State", currentState);
         telemetry.addData("Shooter", shooterManager.getTelemetryData());
+        telemetry.addData("BackdropId", backdropId);
+        telemetry.addData("currentX", current.getX());
+        telemetry.addData("currentY", current.getY());
+        telemetry.addData("current Heading", current.getHeading());
+        telemetry.addData("Distance (in)", computedDistanceInch);
+        telemetry.addData("Range (in)", bbb);
         //panel.update();
-       // panel.renderMinimal();
+        // panel.renderMinimal();
         telemetry.update();
     }
 }

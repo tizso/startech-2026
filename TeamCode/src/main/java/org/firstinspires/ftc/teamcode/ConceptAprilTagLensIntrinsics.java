@@ -1,6 +1,7 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -41,6 +42,7 @@ import java.util.List;
  * 8. Press 'B' again to exit and copy these values into your code.
  */
 @TeleOp(name = "Concept: Camera Lens Calibration", group = "Concept")
+@Disabled
 public class ConceptAprilTagLensIntrinsics extends LinearOpMode {
 
     // A4: 210 mm × 297 mm

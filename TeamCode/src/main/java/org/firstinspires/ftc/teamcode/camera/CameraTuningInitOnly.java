@@ -16,76 +16,113 @@ import java.util.List;
 /**
  * Camera Tuning (Init-only, Profiles + Advisor)
  * --------------------------------------------
- * - Works only during INIT loop (FTC legal). No changes after START.
- * - Profile management: R3/L3 cycle profiles, START marks active, B saves, BACK x2 deletes.
- * - Advisor: suggests which parameter to change (exposure/gain) and in which direction.
+ * - Csak INIT alatt működik (FTC-legal). START után nem módosít.
+ * - Profilkezelés: R3/L3 vált, START aktívnak jelöl, B ment, BACK kétszer töröl.
+ * - Advisor: javaslat expozíció/gain finomhangolására.
+ *
+ * VÁLTOZÁSOK:
+ * - STREAMING állapot megvárása a VisionPortal build után, mielőtt a kontrollokat használnánk.
+ * - enableLiveView(false): Live View kikapcsolása, hogy az RC/DS ne tartsa foglalva a kamerát.
+ * - Védett lezárás: ha lenne régi VisionPortal, az építés előtt és a végén is bezárjuk.
  */
 @TeleOp(name="Camera Tuning (Init-only, Profiles + Advisor)", group="Vision")
 public class CameraTuningInitOnly extends LinearOpMode {
-
     private VisionPortal vp;
     private AprilTagProcessor tag;
     private CameraSettingsManager camMgr;
     private Gamepad last = new Gamepad();
-
     private List<String> profiles;
     private int profIndex = 0;
     private long deleteArmTs = 0; // double-press confirmation window for deletion
 
     // --- Advisor state ---
-    private static final int WINDOW = 12;            // ~0.6s if loop ~50ms
+    private static final int WINDOW = 12; // ~0.6s if loop ~50ms
     private static final double BEARING_STD_HIGH = 3.0; // deg; motion blur suspicion
     private static final int MISS_FRAMES_HIGH = 16;     // how many frames since last detection
     private static final double RANGE_NEAR_IN = 24.0;
     private static final double RANGE_FAR_IN  = 120.0;
-
     private Deque<Double> bearingBuf = new ArrayDeque<>();
-    private Deque<Double> rangeBuf   = new ArrayDeque<>();
+    private Deque<Double> rangeBuf = new ArrayDeque<>();
     private int framesSinceSeen = 0;
 
     private enum AdviceType {
         NONE,
         EXPOSURE_UP_SMALL, EXPOSURE_DOWN_SMALL,
         EXPOSURE_UP_LARGE, EXPOSURE_DOWN_LARGE,
-        GAIN_UP_SMALL,     GAIN_DOWN_SMALL,
-        GAIN_UP_LARGE,     GAIN_DOWN_LARGE
+        GAIN_UP_SMALL, GAIN_DOWN_SMALL,
+        GAIN_UP_LARGE, GAIN_DOWN_LARGE
     }
 
     private static class Advice {
         AdviceType type = AdviceType.NONE;
         String message = "Stable detection. Minor fine-tuning is optional.";
         int expDeltaMs = 0;
-        int gainDelta  = 0;
+        int gainDelta = 0;
     }
 
     @Override
     public void runOpMode() throws InterruptedException {
-        // Vision init
+        // Close any previous portal safely
+        if (vp != null) {
+            try { vp.close(); } catch (Throwable ignore) {}
+            vp = null;
+        }
+
+        // Build AprilTag processor
         tag = new AprilTagProcessor.Builder()
                 .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
                 .build();
-        vp  = new VisionPortal.Builder()
-                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
-                .addProcessor(tag)
-                .build();
+
+        // Build VisionPortal (LiveView disabled, but pipeline gets frames)
+        try {
+            vp = new VisionPortal.Builder()
+                    .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
+                    .addProcessor(tag)
+                    .enableLiveView(false)
+                    .build();
+        } catch (Throwable t) {
+            telemetry.addLine("VisionPortal build error: " + t.getMessage());
+            telemetry.update();
+        }
+
+        // === WAIT UNTIL STREAMING ===
+        long t0 = System.currentTimeMillis();
+        while (opModeInInit() && !isStopRequested()
+                && vp != null
+                && vp.getCameraState() != VisionPortal.CameraState.STREAMING) {
+            long elapsed = System.currentTimeMillis() - t0;
+            telemetry.addData("Camera state", vp.getCameraState());
+            telemetry.addData("Info", "Várakozás a STREAMING állapotra...");
+            telemetry.addData("Elapsed (ms)", elapsed);
+            telemetry.update();
+
+            // Optional timeout to avoid infinite wait if USB/power issue
+            if (elapsed > 5000) {
+                telemetry.addLine("Kamera nem indult el (timeout ~5s). Ellenőrizd az USB-t / tápot.");
+                telemetry.update();
+                break;
+            }
+            sleep(20);
+        }
 
         // Manager + seed default profiles
         camMgr = new CameraSettingsManager(telemetry);
         camMgr.seedDefaultProfilesIfMissing();
         camMgr.loadActiveProfile();
         profiles = camMgr.listProfiles();
-
         if (!profiles.contains(camMgr.getProfile())) {
             camMgr.setProfile(profiles.get(0));
         }
         profIndex = profiles.indexOf(camMgr.getProfile());
         camMgr.load();
-        camMgr.attachAndApply(vp);
+
+        // Attach controls and apply only when streaming
+        if (vp != null) camMgr.attachAndApply(vp);
 
         telemetry.addLine("Camera Tuning (Init-only, Profiles + Advisor)");
-        telemetry.addLine("R3/L3: switch profile  |  START: mark active  |  B: SAVE  |  BACK x2: DELETE");
-        telemetry.addLine("A: MANUAL/AUTO  |  X: DEFAULT  |  Y: LOAD");
-        telemetry.addLine("DPad Up/Down: exposure ±1ms  |  Left/Right: gain ±1  |  LB/RB: exposure+gain ±5");
+        telemetry.addLine("R3/L3: switch profile\nSTART: mark active\nB: SAVE\nBACK x2: DELETE");
+        telemetry.addLine("A: MANUAL/AUTO\nX: DEFAULT\nY: LOAD");
+        telemetry.addLine("DPad Up/Down: exposure ±1ms\nLeft/Right: gain ±1\nLB/RB: exposure+gain ±5");
         telemetry.addLine("Advisor suggests which parameter to change for better Tag visibility/stability.");
         telemetry.update();
 
@@ -97,12 +134,10 @@ public class CameraTuningInitOnly extends LinearOpMode {
             AprilTagDetection best = getClosestByRange();
             boolean visible = (best != null && best.ftcPose != null);
             Double rangeIn = null, bearingDeg = null;
-
             if (visible) {
-                rangeIn    = best.ftcPose.range;
+                rangeIn = best.ftcPose.range;
                 bearingDeg = best.ftcPose.bearing;
                 framesSinceSeen = 0;
-
                 push(rangeBuf, rangeIn, WINDOW);
                 push(bearingBuf, bearingDeg, WINDOW);
             } else {
@@ -119,7 +154,10 @@ public class CameraTuningInitOnly extends LinearOpMode {
             sleep(50);
         }
 
-        if (vp != null) vp.close();
+        if (vp != null) {
+            try { vp.close(); } catch (Throwable ignore) {}
+            vp = null;
+        }
     }
 
     private void handleButtons() {
@@ -145,14 +183,12 @@ public class CameraTuningInitOnly extends LinearOpMode {
         if (gamepad1.a && !last.a) { camMgr.toggleMode(); clearAdvisor(); }
         if (gamepad1.x && !last.x) { camMgr.resetDefaults(8, 15, true); clearAdvisor(); }
         if (gamepad1.y && !last.y) { camMgr.load(); camMgr.apply(); clearAdvisor(); }
-
-        if (gamepad1.dpad_up    && !last.dpad_up)    { camMgr.bumpExposure(+1); clearAdvisor(); }
-        if (gamepad1.dpad_down  && !last.dpad_down)  { camMgr.bumpExposure(-1); clearAdvisor(); }
-        if (gamepad1.dpad_right && !last.dpad_right) { camMgr.bumpGain(+1);     clearAdvisor(); }
-        if (gamepad1.dpad_left  && !last.dpad_left)  { camMgr.bumpGain(-1);     clearAdvisor(); }
-
+        if (gamepad1.dpad_up && !last.dpad_up) { camMgr.bumpExposure(+1); clearAdvisor(); }
+        if (gamepad1.dpad_down && !last.dpad_down) { camMgr.bumpExposure(-1); clearAdvisor(); }
+        if (gamepad1.dpad_right && !last.dpad_right) { camMgr.bumpGain(+1); clearAdvisor(); }
+        if (gamepad1.dpad_left && !last.dpad_left) { camMgr.bumpGain(-1); clearAdvisor(); }
         if (gamepad1.right_bumper && !last.right_bumper) { camMgr.bumpExposure(+5); camMgr.bumpGain(+5); clearAdvisor(); }
-        if (gamepad1.left_bumper  && !last.left_bumper)  { camMgr.bumpExposure(-5); camMgr.bumpGain(-5); clearAdvisor(); }
+        if (gamepad1.left_bumper && !last.left_bumper) { camMgr.bumpExposure(-5); camMgr.bumpGain(-5); clearAdvisor(); }
 
         // Delete profile: BACK twice within 2s
         if (gamepad1.back && !last.back) {
@@ -175,7 +211,6 @@ public class CameraTuningInitOnly extends LinearOpMode {
                 telemetry.addLine("Press BACK again within 2s to DELETE current profile!");
             }
         }
-
         last.copy(gamepad1);
     }
 
@@ -243,30 +278,37 @@ public class CameraTuningInitOnly extends LinearOpMode {
         } else {
             telemetry.addData("Frames since last detection", framesSinceSeen);
         }
-
         telemetry.addData("Mode", camMgr.isManual() ? "MANUAL" : "AUTO");
         telemetry.addData("Exposure (ms)", camMgr.getExposureMs());
         telemetry.addData("Gain", camMgr.getGain());
-
         telemetry.addLine("--- Advisor ---");
         telemetry.addData("Suggestion", adv.message);
+
         switch (adv.type) {
             case EXPOSURE_UP_LARGE:
-                telemetry.addData("Quick key", "RB (+5 ms) or DPad Up (+1 ms)"); break;
+                telemetry.addData("Quick key", "RB (+5 ms) or DPad Up (+1 ms)");
+                break;
             case EXPOSURE_DOWN_LARGE:
-                telemetry.addData("Quick key", "LB (−5 ms) or DPad Down (−1 ms)"); break;
+                telemetry.addData("Quick key", "LB (−5 ms) or DPad Down (−1 ms)");
+                break;
             case EXPOSURE_UP_SMALL:
-                telemetry.addData("Quick key", "DPad Up (+1 ms)"); break;
+                telemetry.addData("Quick key", "DPad Up (+1 ms)");
+                break;
             case EXPOSURE_DOWN_SMALL:
-                telemetry.addData("Quick key", "DPad Down (−1 ms)"); break;
+                telemetry.addData("Quick key", "DPad Down (−1 ms)");
+                break;
             case GAIN_UP_LARGE:
-                telemetry.addData("Quick key", "RB (+5 gain) or DPad Right (+1)"); break;
+                telemetry.addData("Quick key", "RB (+5 gain) or DPad Right (+1)");
+                break;
             case GAIN_DOWN_LARGE:
-                telemetry.addData("Quick key", "LB (−5 gain) or DPad Left (−1)"); break;
+                telemetry.addData("Quick key", "LB (−5 gain) or DPad Left (−1)");
+                break;
             case GAIN_UP_SMALL:
-                telemetry.addData("Quick key", "DPad Right (+1 gain)"); break;
+                telemetry.addData("Quick key", "DPad Right (+1 gain)");
+                break;
             case GAIN_DOWN_SMALL:
-                telemetry.addData("Quick key", "DPad Left (−1 gain)"); break;
+                telemetry.addData("Quick key", "DPad Left (−1 gain)");
+                break;
             default:
                 telemetry.addData("Quick key", "Fine: DPad (±1), Coarse: LB/RB (±5)");
         }
@@ -293,7 +335,10 @@ public class CameraTuningInitOnly extends LinearOpMode {
         double bestRange = Double.MAX_VALUE;
         for (AprilTagDetection d : tag.getDetections()) {
             if (d != null && d.ftcPose != null) {
-                if (best == null || d.ftcPose.range < best.ftcPose.range) best = d;
+                if (best == null || d.ftcPose.range < bestRange) {
+                    best = d;
+                    bestRange = d.ftcPose.range;
+                }
             }
         }
         return best;

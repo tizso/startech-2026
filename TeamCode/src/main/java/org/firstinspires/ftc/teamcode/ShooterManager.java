@@ -14,7 +14,7 @@ public class ShooterManager {
     // --- Main Switch: Motor Control Mode ---
     // true = use `setVelocity()` (requires encoder).
     // false = use `setPower()` (no encoder needed).
-    public static final boolean USE_ENCODER_FOR_SHOOTER = false;
+    public static final boolean USE_ENCODER_FOR_SHOOTER = true;
 
     // --- Hardware ---
     private final DcMotorEx outtakeLeft;
@@ -29,17 +29,17 @@ public class ShooterManager {
 
     // --- Distance Constants for Scaling ---
     /** Maximum distance (in inches) to shoot from. The upper limit for scaling. */
-    private static final double MAX_SHOOTING_DISTANCE_IN = 125.0;
+    private static final double MAX_SHOOTING_DISTANCE_IN = 121.0;
     /** Minimum distance (in inches) to shoot from. The lower limit for scaling. */
-    private static final double MIN_SHOOTING_DISTANCE_IN = 35.0;
+    private static final double MIN_SHOOTING_DISTANCE_IN = 40.0;
 
     // --- Constants for Velocity-Based Control ---
     /** Minimum velocity (in ticks/sec) for the minimum distance. */
-    private static final double MIN_VELOCITY_TICKS_PER_SEC = 800; // Value to be calibrated
+    private static final double MIN_VELOCITY_TICKS_PER_SEC = 1700; // Value to be calibrated
     /** Maximum velocity (in ticks/sec) for the maximum distance. */
-    private static final double MAX_VELOCITY_TICKS_PER_SEC = 2800; // Value to be calibrated
+    private static final double MAX_VELOCITY_TICKS_PER_SEC = 2200; // Value to be calibrated
     /** Default velocity if no tag is visible. */
-    private static final double DEFAULT_VELOCITY_TICKS_PER_SEC = 1800;
+    private static final double DEFAULT_VELOCITY_TICKS_PER_SEC = 2000;
 
     // --- Constants for Power-Based Control (No Encoder) ---
     /** The battery voltage for which the `setPower` values were tuned. The base value for compensation. */
@@ -109,8 +109,10 @@ public class ShooterManager {
             outtakeLeft.setPower(boostedPower);
             outtakeRight.setPower(boostedPower);
         }
-        boostActive = true;
-        boostTimer.reset();
+        if(outtakeLeft.getVelocity() >= lastCalculatedVelocity) {
+            boostActive = true;
+            boostTimer.reset();
+        }
     }
 
     /**
@@ -145,7 +147,7 @@ public class ShooterManager {
      */
     public String getTelemetryData() {
         if (USE_ENCODER_FOR_SHOOTER) {
-            return String.format("VELOCITY | Tgt: %.1f | Act: %.1f", lastCalculatedVelocity, outtakeLeft.getVelocity());
+            return String.format("VELOCITY | Tgt: %.1f | Left: %.1f | Right: %.1f ", lastCalculatedVelocity, outtakeLeft.getVelocity(), outtakeRight.getVelocity());
         } else {
             return String.format("POWER | Tgt: %.2f | V: %.2fV", lastCalculatedPower, getBatteryVoltage());
         }
@@ -163,7 +165,9 @@ public class ShooterManager {
         // Linearly interpolate the velocity based on distance
         double distanceRatio = (clampedDistance - MIN_SHOOTING_DISTANCE_IN) / (MAX_SHOOTING_DISTANCE_IN - MIN_SHOOTING_DISTANCE_IN);
         double targetVelocity = MIN_VELOCITY_TICKS_PER_SEC + distanceRatio * (MAX_VELOCITY_TICKS_PER_SEC - MIN_VELOCITY_TICKS_PER_SEC);
-
+        if(targetVelocity <= 1710){
+            targetVelocity = DEFAULT_VELOCITY_TICKS_PER_SEC;
+        }
         return targetVelocity;
     }
 
@@ -182,7 +186,7 @@ public class ShooterManager {
     
     private double getBatteryVoltage() {
         double voltage = batteryVoltageSensor.getVoltage();
-        if (voltage <= 5) { // Safety check for invalid reading
+        if (voltage <= 9) { // Safety check for invalid reading
             return NOMINAL_VOLTAGE; 
         }
         return voltage;

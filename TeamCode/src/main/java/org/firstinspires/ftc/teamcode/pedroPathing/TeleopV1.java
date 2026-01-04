@@ -11,6 +11,8 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.teamcode.AutonomousStarTechNew;
 import org.firstinspires.ftc.teamcode.HardwareBox;
 import org.firstinspires.ftc.teamcode.RobotConstants;
 import org.firstinspires.ftc.teamcode.ShooterManager;
@@ -71,15 +73,18 @@ public class TeleopV1 extends OpMode {
         // --- Hybrid Pose Loading Logic ---
         Pose startingPose;
         String loadSource;
+        Pose backGoalPose;
         PoseStorage.StoredPose storedPoseFromFile = PoseStorage.loadPoseFromFile();
         boolean isFilePoseDefault = storedPoseFromFile.pose.getX() == 0 && storedPoseFromFile.pose.getY() == 0 && storedPoseFromFile.pose.getHeading() == 0;
 
         if (isFilePoseDefault && OpModeData.lastPose != null) {
             startingPose = OpModeData.lastPose;
+            backGoalPose = OpModeData.backGoalPose;
             autoStartingSide = OpModeData.initialSide; // Load side from static backup
             loadSource = "Static Backup";
         } else {
             startingPose = storedPoseFromFile.pose;
+            backGoalPose = storedPoseFromFile.backGoalPose;
             autoStartingSide = storedPoseFromFile.initialSide; // Load side from file
             loadSource = "File";
         }
@@ -95,6 +100,7 @@ public class TeleopV1 extends OpMode {
         telemetry.addData("Status", "Initialized (18338)");
         telemetry.addData("Pose Load Source", loadSource);
         telemetry.addData("Loaded Pose", "X: %.2f, Y: %.2f, H: %.2f", startingPose.getX(), startingPose.getY(), startingPose.getHeading());
+        telemetry.addData("BackGoal Pose", "X: %.2f, Y: %.2f, H: %.2f", backGoalPose.getX(), backGoalPose.getY(), backGoalPose.getHeading());
         telemetry.addData("Loaded Auto Side", (autoStartingSide < 0 ? "Right/Red" : (autoStartingSide > 0 ? "Left/Blue" : "Unknown")));
         telemetry.update();
     }
@@ -128,7 +134,6 @@ public class TeleopV1 extends OpMode {
 
     private void initVision() {
         aprilTag = new AprilTagProcessor.Builder()
-                //.setLensIntrinsics(30.1374, 28.1888, 314.3062, 241.3251)
                 .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
                 .build();
         visionPortal = new VisionPortal.Builder()
@@ -171,7 +176,7 @@ public class TeleopV1 extends OpMode {
         }
 
         // --- Auto-Aim Feature ---
-        if (currentGamepad1.dpad_down && !previousGamepad1.dpad_down) {
+        if (currentGamepad1.dpad_down ) {
             int goalTagId = (autoStartingSide > 0) ? RobotConstants.BLUE_GOAL_TAG_ID : RobotConstants.RED_GOAL_TAG_ID;
             AprilTagDetection goalTag = null;
             List<AprilTagDetection> currentDetections = aprilTag.getDetections();
@@ -187,13 +192,19 @@ public class TeleopV1 extends OpMode {
                 double angleToTurnRad = Math.toRadians(goalTag.ftcPose.bearing);
                 double desiredHeading = currentPose.getHeading() + angleToTurnRad;
 
-                Pose targetTurnPose = new Pose(currentPose.getX(), currentPose.getY(), desiredHeading);
+                Pose targetTurnPose = new Pose(currentPose.getX()+1, currentPose.getY()+1, desiredHeading);
                 PathChain turnPath = follower.pathBuilder()
                         .addPath(new BezierLine(currentPose, targetTurnPose))
                         .setLinearHeadingInterpolation(currentPose.getHeading(), desiredHeading)
                         .build();
                 follower.followPath(turnPath);
             }
+            if (!follower.isBusy()) {
+                follower.startTeleopDrive();
+            }
+        }
+        if(currentGamepad1.dpad_left){
+            follower.startTeleopDrive();
         }
 
         // --- Manual Toggles ---
@@ -201,7 +212,7 @@ public class TeleopV1 extends OpMode {
         if (currentGamepad1.b && !previousGamepad1.b) intake = !intake;
         if (currentGamepad1.x && !previousGamepad1.x) outtake = !outtake;
         if (currentGamepad1.y && !previousGamepad1.y) reverse = !reverse;
-        if (currentGamepad1.dpad_up && !previousGamepad1.dpad_up) sep = !sep;
+        if ((currentGamepad1.dpad_up && !previousGamepad1.dpad_up) || robot.sensorDistance.getDistance(DistanceUnit.CM) < 20) sep = !sep;
 
         // Servos
         robot.servoInR.setPower(currentGamepad1.right_bumper ? 1.0 : 0.0);
