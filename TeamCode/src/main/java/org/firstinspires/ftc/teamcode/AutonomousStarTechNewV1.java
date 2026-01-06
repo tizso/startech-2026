@@ -1,30 +1,31 @@
 package org.firstinspires.ftc.teamcode;
 
-import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
-import com.qualcomm.robotcore.util.ElapsedTime;
-
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.camera.CameraSettingsManager;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import org.firstinspires.ftc.teamcode.pedroPathing.OpModeData;
+import org.firstinspires.ftc.teamcode.pedroPathing.PoseStorage;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
-import org.firstinspires.ftc.teamcode.pedroPathing.PoseStorage;
-import org.firstinspires.ftc.teamcode.pedroPathing.OpModeData;
-
 import java.util.Collections;
 import java.util.List;
 
-@Autonomous(name = "Autonomous StarTech", group = "Opmode")
-public class AutonomousStarTechNew extends LinearOpMode {
+@Autonomous(name = "Autonomous StarTech V1", group = "Opmode")
+@Disabled
+public class AutonomousStarTechNewV1 extends LinearOpMode {
 
     // --- Core Robot Components ---
     HardwareBox robot = new HardwareBox();
@@ -35,7 +36,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
     private CameraSettingsManager camMgr;
 
     // --- State machine ---
-    private enum State {SETUP, MOVE_TO_SHOOT, WAIT_FOR_MOVE, FINE_AIM, WAIT_FOR_FINE_AIM, CHECK_SPEED, FIRE, NEXT_SHOT, PARK, WAIT_FOR_PARK, END}
+    private enum State {SETUP, COLECT_BALL, WAIT_FOR_MOVE, SHOOT_POS, FINE_AIM, WAIT_FOR_FINE_AIM, CHECK_SPEED, FIRE, NEXT_SHOT, PARK, WAIT_FOR_PARK, END}
 
     private State currentState = State.SETUP;
     private final ElapsedTime timer = new ElapsedTime();
@@ -146,20 +147,40 @@ public class AutonomousStarTechNew extends LinearOpMode {
                         currentState = State.CHECK_SPEED;
                     } else {
                         int rad = initialSide>0?180:0;
-                        Pose park = new Pose(follower.getPose().getX()-(10*initialSide), 36, Math.toRadians(rad));
+                        Pose park = new Pose(follower.getPose().getX()-(9*initialSide), 36, Math.toRadians(rad));
                         pathToPark = follower.pathBuilder()
                                 .addPath(new BezierLine(follower.getPose(), park))
                                 .setLinearHeadingInterpolation(follower.getPose().getHeading(), park.getHeading())
                                 .build();
                         follower.followPath(pathToPark);
-                        currentState = State.WAIT_FOR_PARK;
+                        currentState = State.COLECT_BALL;
                         timer.reset();
                     }
                 }
                 break;
-            case WAIT_FOR_PARK:
+            case COLECT_BALL:
                 if (!follower.isBusy() || timer.seconds() > 3.0) {
+                    currentState = State.WAIT_FOR_PARK;
+                    timer.reset();
+                }
+                break;
+            case WAIT_FOR_PARK:
+                /*if (!follower.isBusy() || timer.seconds() > 3.0) {
                     currentState = State.END;
+                }*/
+                handleBallCounter();
+                currentState = State.SHOOT_POS;
+                break;
+            case SHOOT_POS:
+                if (!follower.isBusy() || timer.seconds() > 3.0) {
+                    Pose sPose = new Pose(startPose.getX(), startPose.getY(), startPose.getHeading());
+                    pathToPark = follower.pathBuilder()
+                            .addPath(new BezierLine(follower.getPose(), sPose))
+                            .setLinearHeadingInterpolation(follower.getPose().getHeading(), sPose.getHeading())
+                            .build();
+                    follower.followPath(pathToPark);
+                    currentState = State.WAIT_FOR_MOVE;
+                    timer.reset();
                 }
                 break;
             case END:
@@ -174,6 +195,45 @@ public class AutonomousStarTechNew extends LinearOpMode {
                 requestOpModeStop();
                 break;
         }
+    }
+
+    private boolean ballInSensor = false;
+    private int ballCount = 0;
+
+    private void handleBallCounter() {
+        double cm = robot.sensorDistance.getDistance(DistanceUnit.CM);
+        boolean seen = !Double.isNaN(cm) && cm < 20;
+        robot.intake.setPower(0.8);
+        if (seen && !ballInSensor && ballCount < 3) {
+            ballCount++;
+
+            switch (ballCount) {
+                case 1:
+                    robot.safeWaitSeconds(2);
+                    robot.intake.setPower(0.0);
+                    break;
+                /*case 2:
+                    if(intake){
+                        robot.safeWaitSeconds(0.7);
+                        intakeSpeed = 0.6;
+                    }
+                    break;
+
+                case 3:
+                    robot.safeWaitSeconds(2);
+                    robot.intake.setPower(0.0);
+                    intake = false;
+                    intakeSpeed = 0.9;
+                    break;*/
+            }
+        }
+        robot.safeWaitSeconds(2);
+        ballInSensor = seen;
+
+        telemetry.addData("Ball Count", ballCount);
+        telemetry.addData("Ball Sensor (cm)", String.format("%.1f", cm));
+        telemetry.addData("Separator", robot.separator.getPosition());
+        telemetry.addData("Intake", robot.intake.getPower());
     }
 
     private void initVision() {
@@ -248,7 +308,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
             double y = backGoal.ftcPose.y;
             double p = Math.sqrt(y * y + x * x);
             baseLandmark = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.RED_BACKDROP_POSE : RobotConstants.BLUE_BACKDROP_POSE;
-            shootHeading = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? 45 : 140;
+            shootHeading = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? 245 : 60;
             initialSide = (obelisk.ftcPose.x > 0) ? -1 : 1;
             //robotHeadingRad = Math.toDegrees(backGoalPose.getHeading()) - (backGoal.ftcPose.bearing*initialSide);
             robotX = backGoalPose.getX() - ((p- RobotConstants.CAMERA_FORWARD_OFFSET)*initialSide);
@@ -298,8 +358,8 @@ public class AutonomousStarTechNew extends LinearOpMode {
 
         double desiredHeading;
         AprilTagDetection backdrop = getClosestBackGoal();
-        if (backdrop != null && backdrop.ftcPose != null && stayAndTurnMode) {
-            int rad = initialSide>0?35:28;
+        if (backdrop != null && backdrop.ftcPose != null) {
+            int rad = initialSide>0?35:25;
             desiredHeading = current.getHeading() + (Math.toRadians(rad) * initialSide);
         } else {
             desiredHeading = shootPose.getHeading(); // Fallback

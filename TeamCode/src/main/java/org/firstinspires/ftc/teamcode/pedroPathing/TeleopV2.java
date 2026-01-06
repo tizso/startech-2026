@@ -1,3 +1,4 @@
+
 package org.firstinspires.ftc.teamcode.pedroPathing;
 
 import com.bylazar.configurables.annotations.Configurable;
@@ -9,8 +10,8 @@ import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.AutonomousStarTechNew;
 import org.firstinspires.ftc.teamcode.HardwareBox;
 import org.firstinspires.ftc.teamcode.RobotConstants;
@@ -28,15 +29,20 @@ import java.util.List;
  * Now updated for dual-motor, velocity-controlled shooter.
  */
 @Configurable
-@TeleOp(name = "TeleOp V1", group="00-TeleOp")
-
-public class TeleopV1 extends OpMode {
+@TeleOp(name = "TeleOp V2", group="00-TeleOp")
+public class TeleopV2 extends OpMode {
 
     HardwareBox robot;
     private Follower follower;
     private ShooterManager shooterManager;
+
     private boolean slowMode = false;
     private double SLOW_DOWN_FACTOR = 1.0;
+
+    private int ballCount = 0;
+    private boolean ballInSensor = false;
+    private static final double BALL_PRESENCE_THRESHOLD_CM = 20.0;
+    private static final int MAX_BALLS = 3;
 
     // Booleans to toggle mechanisms
     private boolean intake = false;
@@ -57,8 +63,15 @@ public class TeleopV1 extends OpMode {
     private double yPos = 0;
     private double yawPos = 0;
     private double braringPos = 0;
+
     // --- Automation Variables ---
     private int autoStartingSide = 0; // -1 for right (Red), 1 for left (Blue), 0 for unknown
+    private boolean autoAimActive = false;     // dpad_down beállás fut
+    private boolean positionedForShot = false;
+
+    int goalTagId = 0;
+
+    private double intakeSpeed = 0.9;
 
     /**
      * Initializes the robot and follower.
@@ -73,8 +86,11 @@ public class TeleopV1 extends OpMode {
         Pose startingPose;
         String loadSource;
         Pose backGoalPose;
+
         PoseStorage.StoredPose storedPoseFromFile = PoseStorage.loadPoseFromFile();
-        boolean isFilePoseDefault = storedPoseFromFile.pose.getX() == 0 && storedPoseFromFile.pose.getY() == 0 && storedPoseFromFile.pose.getHeading() == 0;
+        boolean isFilePoseDefault = storedPoseFromFile.pose.getX() == 0
+                && storedPoseFromFile.pose.getY() == 0
+                && storedPoseFromFile.pose.getHeading() == 0;
 
         if (isFilePoseDefault && OpModeData.lastPose != null) {
             startingPose = OpModeData.lastPose;
@@ -93,14 +109,21 @@ public class TeleopV1 extends OpMode {
 
         robot = new HardwareBox();
         robot.init(hardwareMap);
-        shooterManager = new ShooterManager(robot.outtakeLeft, robot.outtakeRight, hardwareMap.voltageSensor.iterator().next());
 
+        shooterManager = new ShooterManager(
+                robot.outtakeLeft,
+                robot.outtakeRight,
+                hardwareMap.voltageSensor.iterator().next()
+        );
 
         telemetry.addData("Status", "Initialized (18338)");
         telemetry.addData("Pose Load Source", loadSource);
-        telemetry.addData("Loaded Pose", "X: %.2f, Y: %.2f, H: %.2f", startingPose.getX(), startingPose.getY(), startingPose.getHeading());
-        telemetry.addData("BackGoal Pose", "X: %.2f, Y: %.2f, H: %.2f", backGoalPose.getX(), backGoalPose.getY(), backGoalPose.getHeading());
-        telemetry.addData("Loaded Auto Side", (autoStartingSide < 0 ? "Right/Red" : (autoStartingSide > 0 ? "Left/Blue" : "Unknown")));
+        telemetry.addData("Loaded Pose", "X: %.2f, Y: %.2f, H: %.2f",
+                startingPose.getX(), startingPose.getY(), startingPose.getHeading());
+        telemetry.addData("BackGoal Pose", "X: %.2f, Y: %.2f, H: %.2f",
+                backGoalPose.getX(), backGoalPose.getY(), backGoalPose.getHeading());
+        telemetry.addData("Loaded Auto Side",
+                (autoStartingSide < 0 ? "Right/Red" : (autoStartingSide > 0 ? "Left/Blue" : "Unknown")));
         telemetry.update();
     }
 
@@ -122,19 +145,21 @@ public class TeleopV1 extends OpMode {
         previousGamepad1.copy(currentGamepad1);
         currentGamepad1.copy(gamepad1);
 
-        // The follower handles switching between path following and teleop drive internally.
-        // We can simply call all handlers every loop.
         handleManualDrive();
         handleGamepadControls();
         handleShooter();
 
-        //updateTelemetry();
+        handleBallCounter();
+        handleBallShotDecrement();
+
+        //checkAutoOuttake();
     }
 
     private void initVision() {
         aprilTag = new AprilTagProcessor.Builder()
                 .setTagFamily(AprilTagProcessor.TagFamily.TAG_36h11)
                 .build();
+
         visionPortal = new VisionPortal.Builder()
                 .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
                 .addProcessor(aprilTag)
@@ -160,27 +185,30 @@ public class TeleopV1 extends OpMode {
      */
     private void handleGamepadControls() {
         // --- Automation Trigger ---
-        if (currentGamepad1.start && !previousGamepad1.start) {
-            // Use placeholder coordinates for now. These should be tuned.
-            Pose targetPose = (autoStartingSide > 0) ?
-                    new Pose(105, 34, Math.toRadians(90)) : // Blue side target
-                    new Pose(39, 34, Math.toRadians(90));   // Red side target
+        /*if (currentGamepad1.start && !previousGamepad1.start) {
+            // Placeholders - hangold a pontokat a pályához
+            Pose targetPose = (autoStartingSide > 0)
+                    ? new Pose(105, 34, Math.toRadians(90)) // Blue side target
+                    : new Pose(39, 34, Math.toRadians(90)); // Red side target
 
             PathChain pathToTarget = follower.pathBuilder()
                     .addPath(new BezierLine(follower.getPose(), targetPose))
                     .build();
 
-            // This command gives control to the follower until the path is done.
+            // Gives control to the follower until the path is done.
             follower.followPath(pathToTarget);
-        }
+        }*/
 
-        // --- Auto-Aim Feature ---
-        if (currentGamepad1.dpad_down ) {
-            int goalTagId = (autoStartingSide > 0) ? RobotConstants.BLUE_GOAL_TAG_ID : RobotConstants.RED_GOAL_TAG_ID;
+        // --- Auto-Aim & shoot position (dpad_down) ---
+        if (currentGamepad1.dpad_down) {
+            int desiredGoalTagId = (autoStartingSide > 0)
+                    ? RobotConstants.BLUE_GOAL_TAG_ID
+                    : RobotConstants.RED_GOAL_TAG_ID;
+
             AprilTagDetection goalTag = null;
             List<AprilTagDetection> currentDetections = aprilTag.getDetections();
             for (AprilTagDetection detection : currentDetections) {
-                if (detection.metadata != null && detection.id == goalTagId) {
+                if (detection.metadata != null && detection.id == desiredGoalTagId) {
                     goalTag = detection;
                     break;
                 }
@@ -191,16 +219,26 @@ public class TeleopV1 extends OpMode {
                 double angleToTurnRad = Math.toRadians(goalTag.ftcPose.bearing);
                 double desiredHeading = currentPose.getHeading() + angleToTurnRad;
 
-                Pose targetTurnPose = new Pose(currentPose.getX()+1, currentPose.getY()+1, desiredHeading);
+                Pose targetTurnPose = new Pose(currentPose.getX() + 1,
+                        currentPose.getY() + 1,
+                        desiredHeading);
+
                 PathChain turnPath = follower.pathBuilder()
                         .addPath(new BezierLine(currentPose, targetTurnPose))
                         .setLinearHeadingInterpolation(currentPose.getHeading(), desiredHeading)
                         .build();
+
                 follower.followPath(turnPath);
+
+                autoAimActive = true;
+                positionedForShot = false;
             }
         }
-        if(currentGamepad1.dpad_left){
+
+        if (currentGamepad1.dpad_left) {
             follower.startTeleopDrive();
+            autoAimActive = false;
+            positionedForShot = false;
         }
 
         // --- Manual Toggles ---
@@ -208,14 +246,16 @@ public class TeleopV1 extends OpMode {
         if (currentGamepad1.b && !previousGamepad1.b) intake = !intake;
         if (currentGamepad1.x && !previousGamepad1.x) outtake = !outtake;
         if (currentGamepad1.y && !previousGamepad1.y) reverse = !reverse;
-        if (currentGamepad1.dpad_up && !previousGamepad1.dpad_up) sep = !sep;
+        if ((currentGamepad1.dpad_up && !previousGamepad1.dpad_up)) {
+            sep = !sep;
+        }
 
-        // Servos
+        // --- Servos ---
         robot.servoInR.setPower(currentGamepad1.right_bumper ? 1.0 : 0.0);
         robot.servoInL.setPower(currentGamepad1.left_bumper ? 1.0 : 0.0);
 
         // --- Motors ---
-        robot.intake.setPower(intake ? 0.8 : 0.0);
+        robot.intake.setPower(intake ? intakeSpeed : 0.0);
         robot.separator.setPosition(sep ? 0.6 : 0.4);
 
         // Motor/Servo Direction
@@ -230,8 +270,6 @@ public class TeleopV1 extends OpMode {
         }
     }
 
-    int goalTagId = 0;
-
     /**
      * Dynamically calculates and sets shooter wheel velocity based on AprilTag distance.
      */
@@ -241,7 +279,10 @@ public class TeleopV1 extends OpMode {
             return;
         }
 
-        goalTagId = (autoStartingSide > 0) ? RobotConstants.BLUE_GOAL_TAG_ID : RobotConstants.RED_GOAL_TAG_ID;
+        goalTagId = (autoStartingSide > 0)
+                ? RobotConstants.BLUE_GOAL_TAG_ID
+                : RobotConstants.RED_GOAL_TAG_ID;
+
         AprilTagDetection goalTag = null;
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
         for (AprilTagDetection detection : currentDetections) {
@@ -272,5 +313,85 @@ public class TeleopV1 extends OpMode {
         telemetry.addData("goalTagId", goalTagId);
         telemetry.update();
     }
-}
 
+    private void handleBallCounter() {
+        double cm = robot.sensorDistance.getDistance(DistanceUnit.CM);
+        boolean seen = !Double.isNaN(cm) && cm < BALL_PRESENCE_THRESHOLD_CM;
+
+        if (seen && !ballInSensor && ballCount < MAX_BALLS) {
+            ballCount++;
+
+            switch (ballCount) {
+                case 1:
+                    robot.safeWaitSeconds(1);
+                    robot.intake.setPower(0.0);
+                    sep = !sep;
+                    robot.setSeparator(sep);
+                    robot.safeWaitSeconds(1);
+                    intakeSpeed = 0.9;
+                    break;
+                case 2:
+                    if(intake){
+                        robot.safeWaitSeconds(0.7);
+                        intakeSpeed = 0.6;
+                    }
+                    break;
+                case 3:
+                    robot.safeWaitSeconds(2);
+                    robot.intake.setPower(0.0);
+                    intake = false;
+                    intakeSpeed = 0.9;
+                    break;
+            }
+        }
+
+        ballInSensor = seen;
+
+        telemetry.addData("Ball Count", ballCount);
+        telemetry.addData("Ball Sensor (cm)", String.format("%.1f", cm));
+        telemetry.addData("Separator", robot.separator.getPosition());
+        telemetry.addData("Intake", robot.intake.getPower());
+    }
+
+    private void handleBallShotDecrement() {
+
+        if (!outtake || ballCount <= 0) return;
+
+        double current = shooterManager.getAverageVelocityTicksPerSec();
+        double target  = shooterManager.getTargetVelocityTicksPerSec();
+
+        if (target > 0 && current < target * 0.8) {
+            ballCount--;
+            if (ballCount == 0) {
+                robot.safeWaitSeconds(1);
+                outtake = false;
+                intake = true;
+                follower.startTeleopDrive();
+                positionedForShot = false;
+            }
+        }
+    }
+
+
+    private void checkAutoOuttake() {
+
+        if (autoAimActive && !follower.isBusy()) {
+            positionedForShot = true;
+            autoAimActive = false;
+        }
+
+        if (positionedForShot && ballCount > 0) {
+            outtake = true;
+        }
+
+        if (ballCount == 0) {
+            outtake = false;
+            //intake = true;
+            //follower.startTeleopDrive();
+            positionedForShot = false;
+        }
+
+        telemetry.addData("AutoAimActive", autoAimActive);
+        telemetry.addData("PositionedForShot", positionedForShot);
+    }
+}

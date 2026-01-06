@@ -111,8 +111,8 @@ public class HardwareBox extends LinearOpMode{
         setIntake(0);
     }
 
-    public void setSeparator(double value){
-        separator.setPosition(value);
+    public void setSeparator(boolean sep){
+        separator.setPosition(sep ? 0.6 : 0.4);
     }
 
 

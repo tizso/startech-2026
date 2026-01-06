@@ -152,7 +152,19 @@ public class ShooterManager {
             return String.format("POWER | Tgt: %.2f | V: %.2fV", lastCalculatedPower, getBatteryVoltage());
         }
     }
-    
+
+
+    public double getTargetVelocityTicksPerSec() {
+        return lastCalculatedVelocity;
+    }
+
+    public double getAverageVelocityTicksPerSec() {
+        double vL = outtakeLeft.getVelocity();  // ticks/sec
+        double vR = outtakeRight.getVelocity(); // ticks/sec
+        return (vL + vR) / 2.0;
+    }
+
+
     // --- Private Helper Methods ---
 
     private double computeVelocity(double distanceInch) {

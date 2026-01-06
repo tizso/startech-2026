@@ -19,12 +19,12 @@ public class RobotConstants {
     // --- Autonomous Tuning ---
     public static final double YAW_THRESHOLD_DEG = 60.0; // To detect wrong-side tag for shoot pose calculation
     public static final double OBELISK_YAW_THRESHOLD_DEG = 13.0; // To trigger stay-and-turn mode
-    public static final double X_OFFSET_IN = 25.0; // Lateral offset from backdrop for shooting
-    public static final double Y_OFFSET_IN = 20.0; // Forward offset from backdrop for shooting
+    public static final double X_OFFSET_IN = 35.0; // Lateral offset from backdrop for shooting
+    public static final double Y_OFFSET_IN = 35.0; // Forward offset from backdrop for shooting
 
     // --- Fine Aiming Constants ---
     public static final double FINE_AIM_EPS_IN = 0.25; // Small nudge distance for heading correction path
-    public static final double FINE_AIM_TIMEOUT_SEC = 0.40; // Max seconds to wait for fine-aim turn
+    public static final double FINE_AIM_TIMEOUT_SEC = 2.40; // Max seconds to wait for fine-aim turn
     public static final boolean UPDATE_SPEED_ON_FINE_AIM = true;
 
     // --- General Mechanism Timing ---
