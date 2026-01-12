@@ -4,6 +4,7 @@ package org.firstinspires.ftc.teamcode.pedroPathing;
 import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.paths.PathChain;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.pedropathing.follower.Follower;
@@ -30,6 +31,7 @@ import java.util.List;
  */
 @Configurable
 @TeleOp(name = "TeleOp V2", group="00-TeleOp")
+@Disabled
 public class TeleopV2 extends OpMode {
 
     HardwareBox robot;
@@ -300,7 +302,7 @@ public class TeleopV2 extends OpMode {
             braringPos = goalTag.ftcPose.bearing;
         }
 
-        shooterManager.setSpeedFromDistance(lastKnownDistance);
+        shooterManager.setSpeedFromDistance(lastKnownDistance, false);
 
         // --- Telemetry ---
         telemetry.addData("Position", follower.getPose());

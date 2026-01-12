@@ -84,7 +84,8 @@ public class AutonomousStarTechNew extends LinearOpMode {
 
         // --- START ---
         waitForStart();
-        shooterManager.setSpeedFromDistance(computedDistanceInch);
+        shooterManager.setSpeedFromDistance(1690, true);
+        //shooterManager.setSpeedFromDistance(computedDistanceInch, true);
 
         if (stayAndTurnMode) {
             currentState = State.FINE_AIM;
@@ -96,7 +97,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
         }
 
         timer.reset();
-
+        sleep((long) (RobotConstants.AUTON_START_DELAY_SEC * 1000));
         // --- Main Loop ---
         while (opModeIsActive() && !isStopRequested()) {
             follower.update();
@@ -142,11 +143,14 @@ public class AutonomousStarTechNew extends LinearOpMode {
             case NEXT_SHOT:
                 if (timer.seconds() > (RobotConstants.SHOOTING_SERVO_RUN_TIME_SEC + RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC)) {
                     shotIndex++;
+                    robot.servoInR.setPower(0);
+                    robot.servoInL.setPower(0);
                     if (shotIndex < sequence.length) {
                         currentState = State.CHECK_SPEED;
                     } else {
-                        int rad = initialSide>0?180:0;
-                        Pose park = new Pose(follower.getPose().getX()-(10*initialSide), 36, Math.toRadians(rad));
+                        int rad = initialSide > 0 ? 180 : 0;
+                        double yPos = stayAndTurnMode?16:130;
+                        Pose park = new Pose(follower.getPose().getX() - (14 * initialSide), yPos, Math.toRadians(rad));
                         pathToPark = follower.pathBuilder()
                                 .addPath(new BezierLine(follower.getPose(), park))
                                 .setLinearHeadingInterpolation(follower.getPose().getHeading(), park.getHeading())
@@ -219,26 +223,21 @@ public class AutonomousStarTechNew extends LinearOpMode {
 
         if (obelisk == null || backGoal == null) return;
 
-
         stayAndTurnMode = Math.abs(obelisk.ftcPose.yaw) < RobotConstants.OBELISK_YAW_THRESHOLD_DEG;
         foundID = obelisk.id;
         backdropId = backGoal.id;
         sequence = getSequenceForID(foundID);
-
-        Pose baseLandmark;
 
         double robotHeadingRad = 0;
         double robotX = 0;
         double robotY = 0;
         double shootHeading = 0;
 
-
         backGoalPose = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;//(16.01,133.28,-126.0)
         robotHeadingRad = Math.abs(Math.toDegrees(backGoalPose.getHeading())) - (backGoal.ftcPose.yaw - backGoal.ftcPose.bearing);
         if (stayAndTurnMode) {
-            baseLandmark = backGoalPose;
+
             initialSide = (obelisk.ftcPose.x < 0) ? -1 : 1;
-            ///robotHeadingRad = Math.abs(Math.toDegrees(backGoalPose.getHeading())) - (backGoal.ftcPose.yaw - backGoal.ftcPose.bearing);
             shootHeading = robotHeadingRad;
             robotX = backGoalPose.getX() - backGoal.ftcPose.x;
             robotY = backGoalPose.getY() - backGoal.ftcPose.y - RobotConstants.CAMERA_FORWARD_OFFSET;
@@ -247,24 +246,18 @@ public class AutonomousStarTechNew extends LinearOpMode {
             double x = backGoal.ftcPose.x;
             double y = backGoal.ftcPose.y;
             double p = Math.sqrt(y * y + x * x);
-            baseLandmark = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.RED_BACKDROP_POSE : RobotConstants.BLUE_BACKDROP_POSE;
-            shootHeading = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? 45 : 140;
+            shootHeading = (backGoal.id == RobotConstants.BLUE_GOAL_TAG_ID) ? RobotConstants.ANGEL_SHORT_RED : RobotConstants.ANGEL_SHORT_BLUE;
             initialSide = (obelisk.ftcPose.x > 0) ? -1 : 1;
-            //robotHeadingRad = Math.toDegrees(backGoalPose.getHeading()) - (backGoal.ftcPose.bearing*initialSide);
-            robotX = backGoalPose.getX() - ((p- RobotConstants.CAMERA_FORWARD_OFFSET)*initialSide);
-            robotY = backGoalPose.getY() - ((x - RobotConstants.CAMERA_FORWARD_OFFSET)*initialSide);
+            robotX = backGoalPose.getX() - ((p - RobotConstants.CAMERA_FORWARD_OFFSET) * initialSide);
+            robotY = backGoalPose.getY() - ((x - RobotConstants.CAMERA_FORWARD_OFFSET) * initialSide);
         }
 
+        startPose = new Pose(robotX, robotY, Math.toRadians(robotHeadingRad));
 
-        startPose = new Pose(robotX, robotY, Math.toRadians(robotHeadingRad));//(56.4821, 181.0305, -134.0843) //
-        //startPose = new Pose(72, 76, Math.toRadians(134));
-
-        //Pose correctLandmark = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;//(16.01, 133.28, -126.0)
-        //baseLandmark = (Math.abs(backGoal.ftcPose.yaw) > RobotConstants.YAW_THRESHOLD_DEG) ? correctLandmark : backGoalPose;
         shootPose = new Pose(
                 robotX + initialSide * RobotConstants.X_OFFSET_IN,
                 robotY - RobotConstants.Y_OFFSET_IN,
-                Math.toRadians(shootHeading));//(-3.9899, 85.28, -126.0)
+                Math.toRadians(shootHeading));
 
         telemetry.addLine("=== INIT PRECOMPUTE ===");
         telemetry.addData("Tag Distance (in)", "%.2f", backGoal.ftcPose.range);
@@ -292,6 +285,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
     }
 
     double bbb = 0;
+
     private void startFineAim() {
         Pose current = follower.getPose();
         if (current == null) return;
@@ -299,29 +293,30 @@ public class AutonomousStarTechNew extends LinearOpMode {
         double desiredHeading;
         AprilTagDetection backdrop = getClosestBackGoal();
         if (backdrop != null && backdrop.ftcPose != null && stayAndTurnMode) {
-            int rad = initialSide>0?35:28;
+            double rad = initialSide > 0 ? RobotConstants.ANGEL_LONG_BLUE : RobotConstants.ANGEL_LONG_RED;
             desiredHeading = current.getHeading() + (Math.toRadians(rad) * initialSide);
         } else {
             desiredHeading = shootPose.getHeading(); // Fallback
-            //desiredHeading = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE.getHeading() : RobotConstants.RED_BACKDROP_POSE.getHeading(); // Fallback
         }
 
         if (RobotConstants.UPDATE_SPEED_ON_FINE_AIM && backdrop != null && backdrop.ftcPose != null) {
-            /*Pose landmark = (initialSide > 0) ? RobotConstants.BLUE_BACKDROP_POSE : RobotConstants.RED_BACKDROP_POSE;
-            double targetX = landmark.getX() - initialSide * RobotConstants.X_OFFSET_IN;
-            double targetY = landmark.getY() - RobotConstants.Y_OFFSET_IN;
-            computedDistanceInch = Math.hypot(targetX - current.getX(), targetY - current.getY());*/
             computedDistanceInch = backdrop.ftcPose.range;
-            shooterManager.setSpeedFromDistance(computedDistanceInch);
+            double vel = 0;
+            if(stayAndTurnMode){
+                vel = initialSide > 0 ? RobotConstants.VEL_LONG_BLUE : RobotConstants.VEL_LONG_RED;
+            } else {
+                vel = initialSide > 0 ? RobotConstants.VEL_SHORT_BLUE : RobotConstants.VEL_SHORT_RED;
+            }
+            shooterManager.setSpeedFromDistance(vel, true);
         }
 
         // Add a small "nudge" to the target pose to ensure the follower executes the turn.
         // A pure zero-distance path can sometimes be ignored by the path follower.
         double eps = 1.0; // A small nudge in inches
         Pose target;
-        if(stayAndTurnMode){
+        if (stayAndTurnMode) {
             target = new Pose(
-                    current.getX()+eps,
+                    current.getX() + eps,
                     current.getY() + eps,
                     desiredHeading);
         } else {
@@ -337,20 +332,25 @@ public class AutonomousStarTechNew extends LinearOpMode {
         follower.followPath(fine);
     }
 
+    private void shootPurple() {
+        robot.intake.setPower(1);
+        sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
+        robot.intake.setPower(0);
+        sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
+        robot.servoInR.setPower(1.0);
+    }
+
+
     private void fireBall(char type, int idx) {
         robot.servoInR.setDirection(DcMotorSimple.Direction.FORWARD);
 
         if (foundID == 21) {
-            if (type == 'G') {
+            if (idx == 0 && type == 'G') {
                 robot.servoInL.setPower(1.0);
             } else if (idx == 1 && type == 'P') {
                 robot.servoInR.setPower(1.0);
-            } else if (idx == 2) {
-                robot.intake.setPower(1);
-                sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
-                robot.intake.setPower(0);
-                sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
-                robot.servoInR.setPower(1.0);
+            } else if (idx == 2 && type == 'P') {
+                shootPurple();
             }
         } else if (foundID == 22) {
             if (idx == 0 && type == 'P') {
@@ -358,19 +358,13 @@ public class AutonomousStarTechNew extends LinearOpMode {
             } else if (idx == 1 && type == 'G') {
                 robot.servoInL.setPower(1.0);
             } else if (idx == 2 && type == 'P') {
-                robot.intake.setPower(1);
-                sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
-                robot.intake.setPower(0);
-                robot.servoInR.setPower(1.0);
+                shootPurple();
             }
         } else if (foundID == 23) {
             if (idx == 0 && type == 'P') {
                 robot.servoInR.setPower(1.0);
             } else if (idx == 1 && type == 'P') {
-                robot.intake.setPower(1);
-                sleep((long) (RobotConstants.SHOOTING_SERVO_STOP_TIME_SEC * 1000));
-                robot.intake.setPower(0);
-                robot.servoInR.setPower(1.0);
+                shootPurple();
             } else if (idx == 2 && type == 'G') {
                 robot.servoInL.setPower(1.0);
             }

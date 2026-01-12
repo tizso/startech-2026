@@ -52,6 +52,8 @@ public class TeleopV1 extends OpMode {
     private VisionPortal visionPortal;
     private AprilTagProcessor aprilTag;
 
+    private int detectedApril;
+
     private double lastKnownDistance = 0;
     private double xPos = 0;
     private double yPos = 0;
@@ -126,9 +128,9 @@ public class TeleopV1 extends OpMode {
         // We can simply call all handlers every loop.
         handleManualDrive();
         handleGamepadControls();
+        checkApril();
         handleShooter();
-
-        //updateTelemetry();
+        showTelemetry();
     }
 
     private void initVision() {
@@ -198,8 +200,12 @@ public class TeleopV1 extends OpMode {
                         .build();
                 follower.followPath(turnPath);
             }
+            intake = false;
+            outtake = true;
         }
         if(currentGamepad1.dpad_left){
+            outtake = false;
+            intake = true;
             follower.startTeleopDrive();
         }
 
@@ -230,6 +236,18 @@ public class TeleopV1 extends OpMode {
         }
     }
 
+    private void checkApril() {
+        detectedApril = 0;
+        goalTagId = (autoStartingSide > 0) ? RobotConstants.BLUE_GOAL_TAG_ID : RobotConstants.RED_GOAL_TAG_ID;
+        List<AprilTagDetection> currentDetections = aprilTag.getDetections();
+        for (AprilTagDetection detection : currentDetections) {
+            if (detection.metadata != null && detection.id == goalTagId) {
+                detectedApril = detection.id;
+                break;
+            }
+        }
+    }
+
     int goalTagId = 0;
 
     /**
@@ -240,7 +258,6 @@ public class TeleopV1 extends OpMode {
             shooterManager.stop();
             return;
         }
-
         goalTagId = (autoStartingSide > 0) ? RobotConstants.BLUE_GOAL_TAG_ID : RobotConstants.RED_GOAL_TAG_ID;
         AprilTagDetection goalTag = null;
         List<AprilTagDetection> currentDetections = aprilTag.getDetections();
@@ -259,9 +276,12 @@ public class TeleopV1 extends OpMode {
             braringPos = goalTag.ftcPose.bearing;
         }
 
-        shooterManager.setSpeedFromDistance(lastKnownDistance);
+        shooterManager.setSpeedFromDistance(lastKnownDistance, false);
 
         // --- Telemetry ---
+
+    }
+    private void showTelemetry(){
         telemetry.addData("Position", follower.getPose());
         telemetry.addData("Shooter", shooterManager.getTelemetryData());
         telemetry.addData("Tag Distance", "%.2f in", lastKnownDistance);
@@ -270,6 +290,8 @@ public class TeleopV1 extends OpMode {
         telemetry.addData("yaw Distance", "%.2f in", yawPos);
         telemetry.addData("bearing", "%.2f in", braringPos);
         telemetry.addData("goalTagId", goalTagId);
+        telemetry.addData("", "-----");
+        telemetry.addData("detectedApril", detectedApril);
         telemetry.update();
     }
 }

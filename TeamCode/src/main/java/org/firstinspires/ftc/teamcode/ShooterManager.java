@@ -29,7 +29,7 @@ public class ShooterManager {
 
     // --- Distance Constants for Scaling ---
     /** Maximum distance (in inches) to shoot from. The upper limit for scaling. */
-    private static final double MAX_SHOOTING_DISTANCE_IN = 121.0;
+    private static final double MAX_SHOOTING_DISTANCE_IN = 123.0;
     /** Minimum distance (in inches) to shoot from. The lower limit for scaling. */
     private static final double MIN_SHOOTING_DISTANCE_IN = 40.0;
 
@@ -71,18 +71,18 @@ public class ShooterManager {
 
     /**
      * Sets the shooter speed based on the distance to the target, using the selected control mode.
-     * @param distanceInch The distance to the target, in inches.
+     * @param value The distance to the target, in inches.
      */
-    public void setSpeedFromDistance(double distanceInch) {
+    public void setSpeedFromDistance(double value, boolean isAutonomous) {
         if (USE_ENCODER_FOR_SHOOTER) {
             // --- Velocity Control Logic ---
-            double targetTicksPerSec = computeVelocity(distanceInch);
+            double targetTicksPerSec = isAutonomous?value:computeVelocity(value);
             this.lastCalculatedVelocity = targetTicksPerSec;
             outtakeLeft.setVelocity(targetTicksPerSec);
             outtakeRight.setVelocity(targetTicksPerSec);
         } else {
             // --- Power Control Logic ---
-            double targetPower = computePower(distanceInch);
+            double targetPower = isAutonomous?value:computeVelocity(value);
             this.lastCalculatedPower = targetPower;
             outtakeLeft.setPower(targetPower);
             outtakeRight.setPower(targetPower);
@@ -121,7 +121,7 @@ public class ShooterManager {
      */
     public void updateBoostState(double currentDistanceInch) {
         if (boostActive && boostTimer.seconds() > BOOST_TIME_SEC) {
-            setSpeedFromDistance(currentDistanceInch); // Restore normal speed
+            setSpeedFromDistance(currentDistanceInch, false); // Restore normal speed
             boostActive = false;
         }
     }

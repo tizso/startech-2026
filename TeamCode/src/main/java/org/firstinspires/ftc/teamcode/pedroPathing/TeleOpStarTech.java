@@ -215,7 +215,7 @@ public class TeleOpStarTech extends OpMode {
         }
         
         // Set shooter speed based on the last known distance, or 0 if never seen.
-        shooterManager.setSpeedFromDistance(lastKnownDistance);
+        shooterManager.setSpeedFromDistance(lastKnownDistance, false);
 
         // --- Telemetry ---
         telemetry.addData("Position", follower.getPose());

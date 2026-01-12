@@ -294,7 +294,7 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                 if (poseNow != null && shootPose != null) {
                     computedDistanceInch = Math.hypot(shootPose.getX() - poseNow.getX(), shootPose.getY() - poseNow.getY());
                 }
-                shooterManager.setSpeedFromDistance(computedDistanceInch);
+                shooterManager.setSpeedFromDistance(computedDistanceInch, false);
                 if (shooterManager.isReady() || stateTimer.seconds() > RobotConstants.SHOOTER_READY_TIMEOUT_SEC) {
                     shooterManager.applyBoost();
                     currentState = State.SHOOT_FIRE;
