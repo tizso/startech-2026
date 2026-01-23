@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
@@ -24,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Autonomous(name = "Autonomous StarTech", group = "Opmode")
+
 public class AutonomousStarTechNew extends LinearOpMode {
 
     // --- Core Robot Components ---

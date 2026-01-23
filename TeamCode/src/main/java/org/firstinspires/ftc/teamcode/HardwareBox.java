@@ -78,7 +78,7 @@ public class HardwareBox extends LinearOpMode{
 
         servoInR.setDirection(DcMotorSimple.Direction.REVERSE);
 
-      //  cameraTilt.setPosition(0.4);
+        cameraTilt.setPosition(0.4);
 
         // Initialize the distance sensor
         sensorDistance = hwMap.get(DistanceSensor.class, "dist");

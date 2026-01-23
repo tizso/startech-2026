@@ -45,16 +45,16 @@ public class BallDetectionProcessor implements VisionProcessor {
     }
 
 
-    public org.opencv.core.Point getGreenCenter() {
+    public Point getGreenCenter() {
         return (bestGreenContourRect != null)
-                ? new org.opencv.core.Point(bestGreenContourRect.x + bestGreenContourRect.width / 2.0,
+                ? new Point(bestGreenContourRect.x + bestGreenContourRect.width / 2.0,
                 bestGreenContourRect.y + bestGreenContourRect.height / 2.0)
                 : null;
     }
 
-    public org.opencv.core.Point getPurpleCenter() {
+    public Point getPurpleCenter() {
         return (bestPurpleContourRect != null)
-                ? new org.opencv.core.Point(bestPurpleContourRect.x + bestPurpleContourRect.width / 2.0,
+                ? new Point(bestPurpleContourRect.x + bestPurpleContourRect.width / 2.0,
                 bestPurpleContourRect.y + bestPurpleContourRect.height / 2.0)
                 : null;
     }

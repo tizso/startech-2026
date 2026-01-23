@@ -53,7 +53,7 @@ public class ShooterManager {
 
     // --- General Constants ---
     /** Multiplier to temporarily increase speed/power before shooting. */
-    private static final double BOOST_FACTOR = 1.07;
+    private static final double BOOST_FACTOR = 1.09;
     /** Duration of the active "boost" state, in seconds. */
     private static final double BOOST_TIME_SEC = 0.25;
 
@@ -135,7 +135,7 @@ public class ShooterManager {
         if (USE_ENCODER_FOR_SHOOTER) {
             double vL = outtakeLeft.getVelocity();
             double vR = outtakeRight.getVelocity();
-            double tol = 0.92; // 92% of target
+            double tol = 0.95; // 92% of target
             return (vL >= lastCalculatedVelocity * tol) && (vR >= lastCalculatedVelocity * tol);
         }
         return false; // For power-based mode, rely on timeout in the OpMode

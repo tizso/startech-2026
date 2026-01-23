@@ -20,24 +20,24 @@ public class RobotConstants {
 
     // --- Autonomous Tuning ---
     public static final double YAW_THRESHOLD_DEG = 60.0; // To detect wrong-side tag for shoot pose calculation
-    public static final double OBELISK_YAW_THRESHOLD_DEG = 13.0; // To trigger stay-and-turn mode
+    public static final double OBELISK_YAW_THRESHOLD_DEG = 30.0; // To trigger stay-and-turn mode
     public static final double X_OFFSET_IN = 32.0; // Lateral offset from backdrop for shooting
     public static final double Y_OFFSET_IN = 32.0; // Forward offset from backdrop for shooting
 
     // --- Fine Aiming Constants ---
-    public static final double FINE_AIM_EPS_IN = 0.25; // Small nudge distance for heading correction path
-    public static final double FINE_AIM_TIMEOUT_SEC = 4.40; // Max seconds to wait for fine-aim turn
+    public static final double SHOOTING_BACK_TIME = 6.0; // Small nudge distance for heading correction path
+    public static final double FINE_AIM_TIMEOUT_SEC = 5.0; // Max seconds to wait for fine-aim turn
     public static final boolean UPDATE_SPEED_ON_FINE_AIM = true;
 
     // --- General Mechanism Timing ---
-    public static final double SHOOTER_READY_TIMEOUT_SEC = 3.5;
+    public static final double SHOOTER_READY_TIMEOUT_SEC = 4.5;
     public static final double SHOOTING_SERVO_RUN_TIME_SEC = 1.25;
     public static final double SHOOTING_SERVO_STOP_TIME_SEC = 0.75;
 
-    public static final double ANGEL_LONG_BLUE = 35;
-    public static final double ANGEL_LONG_RED = 28;
-    public static final double VEL_LONG_BLUE = 1950;
-    public static final double VEL_LONG_RED = 1962;
+    public static final double ANGEL_LONG_BLUE = 25;
+    public static final double ANGEL_LONG_RED = 24;
+    public static final double VEL_LONG_BLUE = 1990;
+    public static final double VEL_LONG_RED = 2050;
     public static final double ANGEL_SHORT_BLUE = 145;
     public static final double ANGEL_SHORT_RED = 38;
     public static final double VEL_SHORT_BLUE = 1685;
