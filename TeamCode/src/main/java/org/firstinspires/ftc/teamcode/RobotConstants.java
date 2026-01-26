@@ -34,10 +34,13 @@ public class RobotConstants {
     public static final double SHOOTING_SERVO_RUN_TIME_SEC = 1.25;
     public static final double SHOOTING_SERVO_STOP_TIME_SEC = 0.75;
 
+
     public static final double ANGEL_LONG_BLUE = 25;
     public static final double ANGEL_LONG_RED = 24;
     public static final double VEL_LONG_BLUE = 1990;
     public static final double VEL_LONG_RED = 2050;
+
+
     public static final double ANGEL_SHORT_BLUE = 145;
     public static final double ANGEL_SHORT_RED = 38;
     public static final double VEL_SHORT_BLUE = 1685;

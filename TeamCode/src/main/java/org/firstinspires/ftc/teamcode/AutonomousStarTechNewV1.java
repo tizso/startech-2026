@@ -259,8 +259,8 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                 robot.separator.setPosition(0.35);
                 //applyBallColorLogic();
                 if (timer.seconds() > 1.0) {
-                    follower.setMaxPower(0.4);
-                    moveForwardSmallStep(1.0);
+                    follower.setMaxPower(0.4); //set speed
+                    moveForwardSmallStep(1.0);//set step
                     currentState = State.PICKUP_SECOND;
                 }
                 break;
@@ -272,14 +272,14 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     follower.setMaxPower(0);
                     //applyBallColorLogic();
                     robot.safeWaitSeconds(0.3);
-                    follower.setMaxPower(0.4);
+                    follower.setMaxPower(0.4);//set speed
                     currentState = State.PICKUP_THIRD;
                     robot.intake.setPower(0.7);
                 } else if (timer.seconds() > (RobotConstants.SHOOTING_BACK_TIME)) {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(1.0);
+                    moveForwardSmallStep(1.0);//set step
                 }
                 break;
             }
@@ -296,7 +296,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(1.0);
+                    moveForwardSmallStep(1.0);//set step
                 }
                 break;
             }
