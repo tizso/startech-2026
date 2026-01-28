@@ -205,7 +205,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                             b++;
                             double xPos = initialSide > 0 ? 45 : 100;
                             ;
-                            double yPos = stayAndTurnMode ? 33 : 84;
+                            double yPos = stayAndTurnMode ? 35 : 84;
                             double deg = initialSide > 0 ? 180 : 0;
                             Pose pickupStart = new Pose(xPos, yPos, Math.toRadians(deg));
 
@@ -233,7 +233,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     //applyBallColorLogic();
 
                     robot.intake.setPower(1.0);
-                    follower.setMaxPower(0.4);
+                    follower.setMaxPower(0.5);
                     currentState = State.PICKUP_FIRST;
                     timer.reset();
                 }
@@ -259,8 +259,8 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                 robot.separator.setPosition(0.35);
                 //applyBallColorLogic();
                 if (timer.seconds() > 1.0) {
-                    follower.setMaxPower(0.4); //set speed
-                    moveForwardSmallStep(1.0);//set step
+                    follower.setMaxPower(0.5); //set speed
+                    moveForwardSmallStep(1.1);//set step
                     currentState = State.PICKUP_SECOND;
                 }
                 break;
@@ -272,14 +272,14 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     follower.setMaxPower(0);
                     //applyBallColorLogic();
                     robot.safeWaitSeconds(0.3);
-                    follower.setMaxPower(0.4);//set speed
+                    follower.setMaxPower(0.5);//set speed
                     currentState = State.PICKUP_THIRD;
-                    robot.intake.setPower(0.7);
+                    robot.intake.setPower(0.6);
                 } else if (timer.seconds() > (RobotConstants.SHOOTING_BACK_TIME)) {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(1.0);//set step
+                    moveForwardSmallStep(1.2);//set step
                 }
                 break;
             }
@@ -309,6 +309,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                         shootPose.getY() + 2,
                         shootPose.getHeading() - (Math.toRadians(3) * initialSide)
                 );
+                robot.safeWaitSeconds(2.0);
                 PathChain backToShoot = follower.pathBuilder()
                         .addPath(new BezierLine(follower.getPose(), shootPose))
                         .setLinearHeadingInterpolation(
