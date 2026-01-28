@@ -25,12 +25,12 @@ public class RobotConstants {
     public static final double Y_OFFSET_IN = 32.0; // Forward offset from backdrop for shooting
 
     // --- Fine Aiming Constants ---
-    public static final double SHOOTING_BACK_TIME = 7.0; // Small nudge distance for heading correction path
+    public static final double SHOOTING_BACK_TIME = 6.0; // Small nudge distance for heading correction path
     public static final double FINE_AIM_TIMEOUT_SEC = 5.0; // Max seconds to wait for fine-aim turn
     public static final boolean UPDATE_SPEED_ON_FINE_AIM = true;
 
     // --- General Mechanism Timing ---
-    public static final double SHOOTER_READY_TIMEOUT_SEC = 4.5;
+    public static final double SHOOTER_READY_TIMEOUT_SEC = 7.0;
     public static final double SHOOTING_SERVO_RUN_TIME_SEC = 1.25;
     public static final double SHOOTING_SERVO_STOP_TIME_SEC = 0.75;
 
@@ -38,7 +38,7 @@ public class RobotConstants {
     public static final double ANGEL_LONG_BLUE = 25;
     public static final double ANGEL_LONG_RED = 24;
     public static final double VEL_LONG_BLUE = 2015;
-    public static final double VEL_LONG_RED = 2050;
+    public static final double VEL_LONG_RED = 2060;
 
 
     public static final double ANGEL_SHORT_BLUE = 145;
