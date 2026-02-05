@@ -53,7 +53,7 @@ public class ShooterManager {
 
     // --- General Constants ---
     /** Multiplier to temporarily increase speed/power before shooting. */
-    private static final double BOOST_FACTOR = 1.09;
+    private static final double BOOST_FACTOR = 1.01;
     /** Duration of the active "boost" state, in seconds. */
     private static final double BOOST_TIME_SEC = 0.25;
 

@@ -36,6 +36,8 @@ public class AutonomousStarTechNew extends LinearOpMode {
     private ShooterManager shooterManager;
     private CameraSettingsManager camMgr;
 
+    private static final double CAMERA_TILT_SHOOT_POS = 0.5;
+
     // --- State machine ---
     private enum State {SETUP, MOVE_TO_SHOOT, WAIT_FOR_MOVE, FINE_AIM, WAIT_FOR_FINE_AIM, CHECK_SPEED, FIRE, NEXT_SHOT, PARK, WAIT_FOR_PARK, END}
 
@@ -62,7 +64,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
         robot.init(hardwareMap);
         follower = Constants.createFollower(hardwareMap);
         shooterManager = new ShooterManager(robot.outtakeLeft, robot.outtakeRight, hardwareMap.voltageSensor.iterator().next());
-
+        robot.cameraTilt.setPosition(CAMERA_TILT_SHOOT_POS);
         initVision();
 
         // --- INIT Loop ---
@@ -132,7 +134,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
                 break;
             case CHECK_SPEED:
                 if (shooterManager.isReady() || timer.seconds() > RobotConstants.SHOOTER_READY_TIMEOUT_SEC) {
-                    shooterManager.applyBoost();
+                    //shooterManager.applyBoost();
                     currentState = State.FIRE;
                     timer.reset();
                 }
@@ -151,7 +153,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
                         currentState = State.CHECK_SPEED;
                     } else {
                         int rad = initialSide > 0 ? 180 : 0;
-                        double yPos = stayAndTurnMode?16:130;
+                        double yPos = stayAndTurnMode?16:110;
                         Pose park = new Pose(follower.getPose().getX() - (14 * initialSide), yPos, Math.toRadians(rad));
                         pathToPark = follower.pathBuilder()
                                 .addPath(new BezierLine(follower.getPose(), park))

@@ -177,7 +177,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
 
             case CHECK_SPEED:
                 if (shooterManager.isReady() || timer.seconds() > RobotConstants.SHOOTER_READY_TIMEOUT_SEC) {
-                    shooterManager.applyBoost();
+                    //shooterManager.applyBoost();
                     currentState = State.FIRE;
                     timer.reset();
                 }
@@ -203,9 +203,14 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                             robot.cameraTilt.setPosition(CAMERA_TILT_PICKUP_POS);
                             robot.separator.setPosition(0.65);
                             b++;
-                            double xPos = initialSide > 0 ? 45 : 100;
-                            double longY = initialSide > 0 ? 33 : 32;
-                            double yPos = stayAndTurnMode ? longY : 84;
+                            double xPos;
+                            if(stayAndTurnMode){
+                                xPos = initialSide > 0 ? 50 : 105;
+                            } else {
+                                xPos = initialSide < 0 ? 45 : 60;
+                            }
+                            double longY = initialSide > 0 ? 36 : 32;
+                            double yPos = stayAndTurnMode ? longY : 85;
                             double deg = initialSide > 0 ? 180 : 0;
                             Pose pickupStart = new Pose(xPos, yPos, Math.toRadians(deg));
 
@@ -250,7 +255,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(1.0);
+                    moveForwardSmallStep(2.0);
                 }
                 break;
             }
@@ -260,7 +265,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                 //applyBallColorLogic();
                 if (timer.seconds() > 1.0) {
                     follower.setMaxPower(0.6); //set speed
-                    moveForwardSmallStep(1.5);//set step
+                    moveForwardSmallStep(2.0);//set step
                     currentState = State.PICKUP_SECOND;
                 }
                 break;
@@ -279,7 +284,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(1.5);//set step
+                    moveForwardSmallStep(2.0);//set step
                 }
                 break;
             }
@@ -291,12 +296,17 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     follower.setMaxPower(0);
                     robot.safeWaitSeconds(1);
                     robot.intake.setPower(0);
+                    robot.safeWaitSeconds(0.5);
+                    robot.servoInR.setDirection(DcMotorSimple.Direction.REVERSE);
+                    robot.servoInR.setPower(1);
+                    robot.safeWaitSeconds(0.5);
+                    robot.servoInR.setPower(0);
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (timer.seconds() > (RobotConstants.SHOOTING_BACK_TIME-1)) {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(1.2);//set step
+                    moveForwardSmallStep(2.2);//set step
                 }
                 break;
             }
@@ -317,7 +327,11 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                         )
                         .build();
                 follower.followPath(backToShoot);
-                shooterManager.setSpeedFromDistance(initialSide > 0 ? RobotConstants.VEL_LONG_BLUE : RobotConstants.VEL_LONG_RED, true);
+                if(stayAndTurnMode){
+                    shooterManager.setSpeedFromDistance(initialSide > 0 ? RobotConstants.VEL_LONG_BLUE : RobotConstants.VEL_LONG_RED, true);
+                } else {
+                    shooterManager.setSpeedFromDistance(initialSide < 0 ? RobotConstants.VEL_SHORT_BLUE : RobotConstants.VEL_SHORT_RED, true);
+                }
                 currentState = State.WAIT_FOR_RETURN;
                 break;
 
@@ -330,7 +344,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
 
             case PARKING:
                 int rad = initialSide > 0 ? 180 : 0;
-                double yPos = stayAndTurnMode ? 20 : 130;
+                double yPos = stayAndTurnMode ? 20 : 100;
                 Pose park = new Pose(
                         follower.getPose().getX() - (10 * initialSide),
                         yPos,
@@ -554,12 +568,14 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                 vel = initialSide > 0
                         ? RobotConstants.VEL_LONG_BLUE
                         : RobotConstants.VEL_LONG_RED;
+                shooterManager.setSpeedFromDistance(vel, true);
             } else {
                 vel = initialSide > 0
                         ? RobotConstants.VEL_SHORT_BLUE
                         : RobotConstants.VEL_SHORT_RED;
+                shooterManager.setSpeedFromDistance(vel, true);
             }
-            shooterManager.setSpeedFromDistance(vel, true);
+
         }
 
         double eps = 1.0; // A small nudge in inches
