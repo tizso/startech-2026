@@ -22,7 +22,7 @@ public class RobotConstants {
     public static final double YAW_THRESHOLD_DEG = 60.0; // To detect wrong-side tag for shoot pose calculation
     public static final double OBELISK_YAW_THRESHOLD_DEG = 30.0; // To trigger stay-and-turn mode
     public static final double X_OFFSET_IN = 32.0; // Lateral offset from backdrop for shooting
-    public static final double Y_OFFSET_IN = 32.0; // Forward offset from backdrop for shooting
+    public static final double Y_OFFSET_IN = 30.0; // Forward offset from backdrop for shooting
 
     // --- Fine Aiming Constants ---
     public static final double SHOOTING_BACK_TIME = 6.0; // Small nudge distance for heading correction path

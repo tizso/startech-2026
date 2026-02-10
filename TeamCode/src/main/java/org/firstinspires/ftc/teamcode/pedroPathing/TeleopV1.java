@@ -190,7 +190,9 @@ public class TeleopV1 extends OpMode {
 
             Pose currentPose = follower.getPose();
             if (goalTag != null && currentPose != null) {
-                double angleToTurnRad = Math.toRadians(goalTag.ftcPose.bearing);
+                double grade = autoStartingSide>0?-2:4;
+                double angle = goalTag.ftcPose.bearing + (grade * autoStartingSide);
+                double angleToTurnRad = Math.toRadians(angle);
                 double desiredHeading = currentPose.getHeading() + angleToTurnRad;
 
                 Pose targetTurnPose = new Pose(currentPose.getX()+1, currentPose.getY()+1, desiredHeading);

@@ -153,8 +153,8 @@ public class AutonomousStarTechNew extends LinearOpMode {
                         currentState = State.CHECK_SPEED;
                     } else {
                         int rad = initialSide > 0 ? 180 : 0;
-                        double yPos = stayAndTurnMode?16:110;
-                        Pose park = new Pose(follower.getPose().getX() - (14 * initialSide), yPos, Math.toRadians(rad));
+                        double yPos = stayAndTurnMode?16:80;
+                        Pose park = new Pose(follower.getPose().getX() - (15 * initialSide), yPos, Math.toRadians(rad));
                         pathToPark = follower.pathBuilder()
                                 .addPath(new BezierLine(follower.getPose(), park))
                                 .setLinearHeadingInterpolation(follower.getPose().getHeading(), park.getHeading())
