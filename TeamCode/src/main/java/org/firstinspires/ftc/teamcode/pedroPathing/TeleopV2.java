@@ -353,6 +353,8 @@ public class TeleopV2 extends OpMode {
         telemetry.addData("Ball Sensor (cm)", String.format("%.1f", cm));
         telemetry.addData("Separator", robot.separator.getPosition());
         telemetry.addData("Intake", robot.intake.getPower());
+
+
     }
 
     private void handleBallShotDecrement() {

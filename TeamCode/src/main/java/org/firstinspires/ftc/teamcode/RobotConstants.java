@@ -37,7 +37,7 @@ public class RobotConstants {
 
     public static final double ANGEL_LONG_BLUE = 24;
     public static final double ANGEL_LONG_RED = 24;
-    public static final double VEL_LONG_BLUE = 2180;
+    public static final double VEL_LONG_BLUE = 2190;
     public static final double VEL_LONG_RED = 2195;
 
 
