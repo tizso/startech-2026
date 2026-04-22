@@ -35,9 +35,9 @@ public class ShooterManager {
 
     // --- Constants for Velocity-Based Control ---
     /** Minimum velocity (in ticks/sec) for the minimum distance. */
-    private static final double MIN_VELOCITY_TICKS_PER_SEC = 1700; // Value to be calibrated
+    private static final double MIN_VELOCITY_TICKS_PER_SEC = 1500; // Value to be calibrated
     /** Maximum velocity (in ticks/sec) for the maximum distance. */
-    private static final double MAX_VELOCITY_TICKS_PER_SEC = 2200; // Value to be calibrated
+    private static final double MAX_VELOCITY_TICKS_PER_SEC = 2150; // Value to be calibrated
     /** Default velocity if no tag is visible. */
     private static final double DEFAULT_VELOCITY_TICKS_PER_SEC = 2000;
 
@@ -177,7 +177,7 @@ public class ShooterManager {
         // Linearly interpolate the velocity based on distance
         double distanceRatio = (clampedDistance - MIN_SHOOTING_DISTANCE_IN) / (MAX_SHOOTING_DISTANCE_IN - MIN_SHOOTING_DISTANCE_IN);
         double targetVelocity = MIN_VELOCITY_TICKS_PER_SEC + distanceRatio * (MAX_VELOCITY_TICKS_PER_SEC - MIN_VELOCITY_TICKS_PER_SEC);
-        if(targetVelocity <= 1710){
+        if(targetVelocity <= 1400){
             targetVelocity = DEFAULT_VELOCITY_TICKS_PER_SEC;
         }
         return targetVelocity;

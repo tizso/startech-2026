@@ -153,8 +153,7 @@ public class AutonomousStarTechNew extends LinearOpMode {
                         currentState = State.CHECK_SPEED;
                     } else {
                         int rad = initialSide > 0 ? 180 : 0;
-                        double yPos = stayAndTurnMode?16:80;
-                        Pose park = new Pose(follower.getPose().getX() - (15 * initialSide), yPos, Math.toRadians(rad));
+                        double yPos = stayAndTurnMode?16:1;                        Pose park = new Pose(follower.getPose().getX() - (5 * initialSide), yPos, Math.toRadians(rad));
                         pathToPark = follower.pathBuilder()
                                 .addPath(new BezierLine(follower.getPose(), park))
                                 .setLinearHeadingInterpolation(follower.getPose().getHeading(), park.getHeading())
@@ -193,6 +192,12 @@ public class AutonomousStarTechNew extends LinearOpMode {
                     .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
                     .addProcessor(aprilTag)
                     .build();
+
+
+            while (visionPortal.getCameraState() != VisionPortal.CameraState.STREAMING
+                    && !isStopRequested()) {
+                sleep(20);
+            }
 
             camMgr = new CameraSettingsManager(telemetry);
             camMgr.loadActiveProfile();

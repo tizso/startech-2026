@@ -11,6 +11,8 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
+import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.GainControl;
 import org.firstinspires.ftc.teamcode.AutonomousStarTechNew;
 import org.firstinspires.ftc.teamcode.HardwareBox;
 import org.firstinspires.ftc.teamcode.RobotConstants;
@@ -20,6 +22,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This is the main TeleOp program for the 2026 season.
@@ -58,6 +61,7 @@ public class TeleopV1 extends OpMode {
     private double xPos = 0;
     private double yPos = 0;
     private double yawPos = 0;
+    private boolean cameraSettingsApplied = false;
     private double braringPos = 0;
     // --- Automation Variables ---
     private int autoStartingSide = 0; // -1 for right (Red), 1 for left (Blue), 0 for unknown
@@ -131,6 +135,23 @@ public class TeleopV1 extends OpMode {
         checkApril();
         handleShooter();
         showTelemetry();
+        if (!cameraSettingsApplied &&
+                visionPortal.getCameraState() == VisionPortal.CameraState.STREAMING) {
+
+            ExposureControl exposure = visionPortal.getCameraControl(ExposureControl.class);
+            GainControl gain = visionPortal.getCameraControl(GainControl.class);
+
+            if (exposure != null) {
+                exposure.setMode(ExposureControl.Mode.Manual);
+                exposure.setExposure(3, TimeUnit.MILLISECONDS);   // your value
+            }
+
+            if (gain != null) {
+                gain.setGain(6);  // your value
+            }
+
+            cameraSettingsApplied = true;
+        }
     }
 
     private void initVision() {

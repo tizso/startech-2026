@@ -43,6 +43,9 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
     private static final double CAMERA_TILT_PICKUP_POS = 0.8;
     private static final double CAMERA_TILT_SHOOT_POS = 0.5;
 
+    private double ANGEL_LONG_BLUE_NEW = 22;
+    private double ANGEL_LONG_RED_NEW = 22;
+
     // --- State machine ---
     private enum State {
         SETUP,
@@ -284,7 +287,7 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(2.5);//set step
+                    moveForwardSmallStep(3.5);//set step
                 }
                 break;
             }
@@ -319,6 +322,8 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                         shootPose.getY() + 2,
                         shootPose.getHeading() - (Math.toRadians(3) * initialSide)
                 );
+                ANGEL_LONG_BLUE_NEW = 2;
+                ANGEL_LONG_RED_NEW = 1;
                 PathChain backToShoot = follower.pathBuilder()
                         .addPath(new BezierLine(follower.getPose(), shootPose))
                         .setLinearHeadingInterpolation(
@@ -428,6 +433,11 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
                     .addProcessor(aprilTag)
                     .addProcessor(ballProcessor)
                     .build();
+
+            while (visionPortal.getCameraState() != VisionPortal.CameraState.STREAMING
+                    && !isStopRequested()) {
+                sleep(20);
+            }
 
             camMgr = new CameraSettingsManager(telemetry);
             camMgr.loadActiveProfile();
@@ -551,8 +561,8 @@ public class AutonomousStarTechNewV1 extends LinearOpMode {
         AprilTagDetection backdrop = getClosestBackGoal();
         if (backdrop != null && backdrop.ftcPose != null && stayAndTurnMode) {
             double rad = initialSide > 0
-                    ? RobotConstants.ANGEL_LONG_BLUE
-                    : RobotConstants.ANGEL_LONG_RED;
+                    ? ANGEL_LONG_BLUE_NEW
+                    : ANGEL_LONG_RED_NEW;
             desiredHeading = current.getHeading() + (Math.toRadians(rad) * initialSide);
         } else {
             desiredHeading = shootPose.getHeading(); // Fallback

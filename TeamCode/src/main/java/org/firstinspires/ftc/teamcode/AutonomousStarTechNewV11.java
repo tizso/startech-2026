@@ -1,33 +1,31 @@
 package org.firstinspires.ftc.teamcode;
 
 
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.Pose;
+import com.pedropathing.paths.PathChain;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierLine;
-import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.PathChain;
-
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.camera.CameraSettingsManager;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import org.firstinspires.ftc.teamcode.pedroPathing.OpModeData;
+import org.firstinspires.ftc.teamcode.pedroPathing.PoseStorage;
 import org.firstinspires.ftc.vision.VisionPortal;
 import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
 import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
-
-import org.firstinspires.ftc.teamcode.pedroPathing.PoseStorage;
-import org.firstinspires.ftc.teamcode.pedroPathing.OpModeData;
 import org.opencv.core.Point;
 
 import java.util.Collections;
 import java.util.List;
 
-@Autonomous(name = "Autonomous StarTech V2", group = "Opmode")
-public class AutonomousStarTechNewV2 extends LinearOpMode {
+@Autonomous(name = "Autonomous StarTech V11", group = "Opmode")
+public class AutonomousStarTechNewV11 extends LinearOpMode {
 
     // --- Core Robot Components ---
     HardwareBox robot = new HardwareBox();
@@ -200,20 +198,18 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                     } else {
                         shooterManager.stop();
                         if (b == 0) {
-                            robot.safeWaitSeconds(2);
                             robot.cameraTilt.setPosition(CAMERA_TILT_PICKUP_POS);
                             robot.separator.setPosition(0.65);
                             b++;
                             double xPos;
                             if(stayAndTurnMode){
-                                xPos = initialSide > 0 ? 10 : 130;
+                                xPos = initialSide > 0 ? 50 : 105;
                             } else {
                                 xPos = initialSide < 0 ? 45 : 60;
                             }
-                            double longY = initialSide > 0 ? 16 : 14;
+                            double longY = initialSide > 0 ? 36 : 32;
                             double yPos = stayAndTurnMode ? longY : 85;
-                            double deg =
-                                    initialSide > 0 ? 190 : 0;
+                            double deg = initialSide > 0 ? 180 : 0;
                             Pose pickupStart = new Pose(xPos, yPos, Math.toRadians(deg));
 
                             PathChain toPickup = follower.pathBuilder()
@@ -247,7 +243,6 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                 break;
 
             case PICKUP_FIRST: {
-
                 double dist = robot.sensorDistance.getDistance(DistanceUnit.CM);
                 if (dist < 20.0) {
                     follower.breakFollowing();
@@ -269,7 +264,7 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                 if (timer.seconds() > 1.0) {
                     follower.setMaxPower(0.6); //set speed
                     moveForwardSmallStep(2.5);//set step
-                    currentState = State.RETURN_TO_SHOOT;
+                    currentState = State.PICKUP_SECOND;
                 }
                 break;
 
@@ -287,7 +282,7 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(2.5);//set step
+                    moveForwardSmallStep(3.5);//set step
                 }
                 break;
             }
@@ -305,11 +300,11 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                     robot.safeWaitSeconds(0.5);
                     robot.servoInR.setPower(0);
                     currentState = State.RETURN_TO_SHOOT;
-                } else if (timer.seconds() > (RobotConstants.SHOOTING_BACK_TIME-1)) {
+                } else if (timer.seconds() > (RobotConstants.SHOOTING_BACK_TIME)) {
                     timer.reset();
                     currentState = State.RETURN_TO_SHOOT;
                 } else if (!follower.isBusy()) {
-                    moveForwardSmallStep(3);//set step
+                    moveForwardSmallStep(3.5);//set step
                 }
                 break;
             }
@@ -320,8 +315,7 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                 shootPose = new Pose(
                         shootPose.getX() + (5 * initialSide),
                         shootPose.getY() + 2,
-                        //shootPose.getHeading()
-                        shootPose.getHeading() - (Math.toRadians(1) * initialSide)
+                        shootPose.getHeading() - (Math.toRadians(3) * initialSide)
                 );
                 PathChain backToShoot = follower.pathBuilder()
                         .addPath(new BezierLine(follower.getPose(), shootPose))
@@ -350,7 +344,7 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                 int rad = initialSide > 0 ? 180 : 0;
                 double yPos = stayAndTurnMode ? 20 : 100;
                 Pose park = new Pose(
-                        follower.getPose().getX() - (20 * initialSide),
+                        follower.getPose().getX() - (10 * initialSide),
                         yPos,
                         Math.toRadians(rad)
                 );
@@ -433,10 +427,10 @@ public class AutonomousStarTechNewV2 extends LinearOpMode {
                     .addProcessor(ballProcessor)
                     .build();
 
-            while (visionPortal.getCameraState() != VisionPortal.CameraState.STREAMING
+            /*while (visionPortal.getCameraState() != VisionPortal.CameraState.STREAMING
                     && !isStopRequested()) {
                 sleep(20);
-            }
+            }*/
 
             camMgr = new CameraSettingsManager(telemetry);
             camMgr.loadActiveProfile();
